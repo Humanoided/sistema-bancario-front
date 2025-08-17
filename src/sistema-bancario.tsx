@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -63,43 +63,36 @@ const createUser = (nombre: string, cedula: string, celular: string, email: stri
 
 // Hook personalizado para manejo del estado del sistema
 const useBankingSystem = () => {
-  const [usuarios, setUsuarios] = useState<Map<string, Usuario>>(new Map());
+  /* const [usuarios, setUsuarios] = useState<Map<string, Usuario>>(new Map()); */
   const [usuarioActual, setUsuarioActual] = useState<Usuario | null>(null);
   const [pantalla, setPantalla] = useState<Pantalla>('menu');
 
   const registrarUsuario = useCallback((datos: UserData): boolean => {
     const usuario = createUser(datos.nombre, datos.cedula, datos.celular, datos.email, datos.password);
-    setUsuarios(prev => new Map(prev).set(datos.cedula, usuario));
+    const usuarios = JSON.parse(localStorage.getItem('usuarios') || '{}');
+    usuarios[datos.cedula] = usuario;
+    localStorage.setItem('usuarios', JSON.stringify(usuarios));
     return true;
   }, []);
 
   const iniciarSesion = useCallback((cedula: string, password: string): LoginResponse => {
-    const usuario = usuarios.get(cedula);
+    const usuario = JSON.parse(localStorage.getItem('usuarios') || '{}')[cedula];
 
     if (!usuario) return { success: false, message: 'Usuario no encontrado' };
     if (usuario.bloqueado) return { success: false, message: 'Cuenta bloqueada por 24 horas' };
 
     if (usuario.password === password) {
-      setUsuarios(prev => {
-        const newMap = new Map(prev);
-        newMap.set(cedula, { ...usuario, intentosFallidos: 0 });
-        return newMap;
-      });
       setUsuarioActual({ ...usuario, intentosFallidos: 0 });
       return { success: true };
     } else {
       const nuevosIntentos = usuario.intentosFallidos + 1;
       const bloqueado = nuevosIntentos >= 3;
 
-      setUsuarios(prev => {
-        const newMap = new Map(prev);
-        newMap.set(cedula, {
-          ...usuario,
-          intentosFallidos: nuevosIntentos,
-          bloqueado
-        });
-        return newMap;
-      });
+      localStorage.setItem('usuarios', JSON.stringify({
+        ...usuario,
+        intentosFallidos: nuevosIntentos,
+        bloqueado
+      }));
 
       if (bloqueado) {
         return { success: false, message: 'Cuenta bloqueada por 24 horas, comunícate con tu banco' };
@@ -108,10 +101,14 @@ const useBankingSystem = () => {
         return { success: false, message: `Contraseña incorrecta. Intentos restantes: ${intentosRestantes}` };
       }
     }
-  }, [usuarios]);
+  }, []);
 
   const actualizarUsuario = useCallback((usuarioActualizado: Usuario) => {
-    setUsuarios(prev => new Map(prev).set(usuarioActualizado.cedula, usuarioActualizado));
+    localStorage.setItem('usuarios', JSON.stringify({
+      ...usuarioActualizado,
+      intentosFallidos: 0,
+      bloqueado: false
+    }));
     setUsuarioActual(usuarioActualizado);
   }, []);
 
@@ -121,7 +118,6 @@ const useBankingSystem = () => {
   }, []);
 
   return {
-    usuarios,
     usuarioActual,
     pantalla,
     setPantalla,
@@ -193,14 +189,6 @@ const FormularioRegistro = ({
     type: string;
   };
 
-  const campos: CampoType[] = [
-    { key: 'nombre', label: 'Nombre', type: 'text' },
-    { key: 'cedula', label: 'Cédula', type: 'text' },
-    { key: 'celular', label: 'Celular', type: 'tel' },
-    { key: 'email', label: 'Email', type: 'email' },
-    { key: 'password', label: 'Contraseña', type: 'password' }
-  ];
-
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
@@ -208,18 +196,56 @@ const FormularioRegistro = ({
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {campos.map(({ key, label, type }) => (
-            <div key={key}>
-              <Label htmlFor={key}>{label}</Label>
-              <Input
-                id={key}
-                type={type}
-                value={formData[key]}
-                onChange={(e) => handleChange(key, e.target.value)}
-                required
-              />
-            </div>
-          ))}
+          <div>
+            <Label htmlFor="nombre">Nombre</Label>
+            <Input
+              id="nombre"
+              type="text"
+              value={formData.nombre}
+              onChange={(e) => handleChange('nombre', e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="cedula">Cédula</Label>
+            <Input
+              id="cedula"
+              type="text"
+              value={formData.cedula}
+              onChange={(e) => handleChange('cedula', e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="celular">Celular</Label>
+            <Input
+              id="celular"
+              type="tel"
+              value={formData.celular}
+              onChange={(e) => handleChange('celular', e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => handleChange('email', e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="password">Contraseña</Label>
+            <Input
+              id="password"
+              type="password"
+              value={formData.password}
+              onChange={(e) => handleChange('password', e.target.value)}
+              required
+            />
+          </div>
           <div className="flex gap-2">
             <Button onClick={handleSubmit} className="flex-1">Registrar</Button>
             <Button variant="outline" onClick={() => setPantalla('menu')} className="flex-1">
@@ -250,7 +276,7 @@ const FormularioLogin = ({
     if (resultado.success) {
       setPantalla('dashboard');
     } else {
-      setMensaje(resultado.message);
+      setMensaje(resultado.message || '');
     }
   };
 
@@ -341,7 +367,7 @@ const Dashboard = ({
         return;
       }
       const usuarioActualizado = agregarMovimiento('retiro', monto);
-      setMensaje(`Retiro exitoso. Saldo actual: $${usuarioActualizado.saldo.toLocaleString()}`);
+      setMensaje('Retiro exitoso. Saldo actual: $' + usuarioActualizado.saldo.toLocaleString());
     },
 
     consignar: (monto) => {
@@ -350,7 +376,7 @@ const Dashboard = ({
         return;
       }
       const usuarioActualizado = agregarMovimiento('consignación', monto);
-      setMensaje(`Consignación exitosa. Saldo actual: $${usuarioActualizado.saldo.toLocaleString()}`);
+      setMensaje('Consignación exitosa. Saldo actual: $' + usuarioActualizado.saldo.toLocaleString());
     },
 
     cambiarPassword: (passwordActual, passwordNuevo) => {
@@ -434,7 +460,7 @@ const OperacionComponent = ({
 
       if (vista === 'retirar') {
         operaciones.retirar(montoNum);
-      } else {
+      } else if (vista === 'consignar') {
         operaciones.consignar(montoNum);
       }
     } else if (vista === 'cambiarPassword') {
