@@ -292,7 +292,7 @@ const Dashboard = ({
   onActualizarUsuario: (usuario: Usuario) => void;
   onCerrarSesion: () => void;
 }) => {
-  const [vista, setVista] = useState<VistaDashboard>("consultar");
+  const [vista, setVista] = useState<VistaDashboard | "principal">("principal");
   const [mensaje, setMensaje] = useState("");
 
   const operaciones: Operaciones = {
@@ -315,7 +315,7 @@ const Dashboard = ({
     },
   };
 
-  if (vista === "consultar") {
+  if (vista === "principal") {
     return (
       <Card className="w-full max-w-md mx-auto">
         <CardHeader>
@@ -395,10 +395,8 @@ const OperacionComponent = ({
   mensaje,
   setMensaje,
 }: {
-  vista: Exclude<Pantalla, "menu" | "login" | "registro" | "dashboard">;
-  setVista: (
-    vista: Exclude<Pantalla, "menu" | "login" | "registro" | "dashboard">
-  ) => void;
+  vista: VistaDashboard;
+  setVista: (vista: VistaDashboard | "principal") => void;
   usuario: Usuario;
   operaciones: Operaciones;
   mensaje: string;
@@ -435,7 +433,7 @@ const OperacionComponent = ({
   };
 
   const volver = () => {
-    const nuevaVista: VistaDashboard = "consultar";
+    const nuevaVista: VistaDashboard | "principal" = "principal";
     setVista(nuevaVista);
     setMensaje("");
   };
@@ -448,7 +446,7 @@ const OperacionComponent = ({
       consultar: "Consultar Saldo",
       movimientos: "Historial de Movimientos",
     };
-    return titulos[vista] || vista;
+    return titulos[vista];
   };
 
   const getBotonTexto = (): string => {
