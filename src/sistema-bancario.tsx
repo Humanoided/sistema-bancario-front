@@ -300,18 +300,21 @@ const Dashboard = ({
       const res = core.retirar(usuario, monto);
       setMensaje(res.message);
       if (res.success && res.usuario) onActualizarUsuario(res.usuario);
+      setVista("principal");
     },
 
     consignar: (monto) => {
       const res = core.consignar(usuario, monto);
       setMensaje(res.message);
       if (res.success && res.usuario) onActualizarUsuario(res.usuario);
+      setVista("principal");
     },
 
     cambiarPassword: (passwordActual, passwordNuevo) => {
       const res = core.cambiarPassword(usuario, passwordActual, passwordNuevo);
       setMensaje(res.message);
       if (res.success && res.usuario) onActualizarUsuario(res.usuario);
+      setVista("principal");
     },
   };
 
