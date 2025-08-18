@@ -75,8 +75,8 @@ const useBankingSystem = () => {
     return true;
   }, []);
 
-  const iniciarSesion = useCallback((cedula: string, password: string): LoginResponse => {
-    const usuario = JSON.parse(localStorage.getItem('usuarios') || '{}')[cedula];
+  const iniciarSesion = useCallback((id: string, password: string): LoginResponse => {
+    const usuario = JSON.parse(localStorage.getItem('usuarios') || '{}')[id];
 
     if (!usuario) return { success: false, message: 'Usuario no encontrado' };
     if (usuario.bloqueado) return { success: false, message: 'Cuenta bloqueada por 24 horas' };
