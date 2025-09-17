@@ -122,6 +122,38 @@ export const actualizarUsuario = (usuarioActualizado: Usuario) => {
   writeDb(usuarios);
 };
 
+export const actualizarPerfil = (
+  usuario: Usuario,
+  cambios: Partial<Pick<Usuario, "nombre" | "celular" | "email">>
+) => {
+  if (!cambios) {
+    return { success: false, message: "No hay cambios para guardar" };
+  }
+  if (cambios.email && !cambios.email.includes("@")) {
+    return { success: false, message: "Email no válido" };
+  }
+  if (cambios.celular && cambios.celular.trim().length < 7) {
+    return { success: false, message: "Celular no válido" };
+  }
+
+  const usuarios = readDb();
+  const actual = usuarios[usuario.id];
+  if (!actual) {
+    return { success: false, message: "Usuario no encontrado" };
+  }
+
+  const actualizado: Usuario = {
+    ...actual,
+    ...cambios,
+  };
+
+  usuarios[usuario.id] = actualizado;
+  writeDb(usuarios);
+
+  return { success: true, message: "Datos actualizados", usuario: actualizado };
+};
+
+
 const agregarMovimiento = (
   usuario: Usuario,
   tipo: string,

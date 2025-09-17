@@ -64,7 +64,8 @@ type Pantalla =
   | "consignar"
   | "consultar"
   | "movimientos"
-  | "cambiarPassword";
+  | "cambiarPassword"
+  | "editarPerfil";
 type VistaDashboard = Exclude<
   Pantalla,
   "menu" | "login" | "registro" | "dashboard"
@@ -364,6 +365,14 @@ const Dashboard = ({
           >
             Cambiar Contraseña
           </Button>
+          <Button
+            onClick={() => setVista("editarPerfil")}
+            variant="outline"
+            className="w-full"
+>
+           Editar Perfil
+          </Button>
+
           <Separator />
           <Button
             onClick={onCerrarSesion}
@@ -385,6 +394,7 @@ const Dashboard = ({
       operaciones={operaciones}
       mensaje={mensaje}
       setMensaje={setMensaje}
+      onActualizarUsuario={onActualizarUsuario} 
     />
   );
 };
@@ -397,6 +407,7 @@ const OperacionComponent = ({
   operaciones,
   mensaje,
   setMensaje,
+  onActualizarUsuario,
 }: {
   vista: VistaDashboard;
   setVista: (vista: VistaDashboard | "principal") => void;
@@ -404,6 +415,7 @@ const OperacionComponent = ({
   operaciones: Operaciones;
   mensaje: string;
   setMensaje: (mensaje: string) => void;
+  onActualizarUsuario: (usuario: Usuario) => void;
 }) => {
   const [monto, setMonto] = useState("");
   const [passwordActual, setPasswordActual] = useState("");
@@ -448,6 +460,7 @@ const OperacionComponent = ({
       cambiarPassword: "Cambiar Contraseña",
       consultar: "Consultar Saldo",
       movimientos: "Historial de Movimientos",
+      editarPerfil: "Editar Perfil",
     };
     return titulos[vista];
   };
@@ -459,6 +472,7 @@ const OperacionComponent = ({
       cambiarPassword: "Cambiar",
       consultar: "Aceptar",
       movimientos: "Aceptar",
+      editarPerfil: "Guardar",
     };
     return botones[vista];
   };
@@ -521,6 +535,79 @@ const OperacionComponent = ({
       </Card>
     );
   }
+   
+if (vista === "editarPerfil") {
+  const [nombre, setNombre] = useState(usuario.nombre);
+  const [celular, setCelular] = useState(usuario.celular);
+  const [email, setEmail] = useState(usuario.email);
+
+  const guardar = () => {
+    const res = core.actualizarPerfil(usuario, { nombre, celular, email });
+    setMensaje(res.message);
+    if (res.success && res.usuario) {
+      onActualizarUsuario(res.usuario); // actualiza estado global
+    }
+    volver();
+  };
+
+  return (
+    <Card className="w-full max-w-md mx-auto">
+      <CardHeader>
+        <CardTitle>Editar Perfil</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {mensaje && (
+          <Alert className="mb-4">
+            <AlertDescription>{mensaje}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="nombre">Nombre</Label>
+            <Input
+              id="nombre"
+              type="text"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="celular">Celular</Label>
+            <Input
+              id="celular"
+              type="tel"
+              value={celular}
+              onChange={(e) => setCelular(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <Button onClick={guardar} className="flex-1">
+              Guardar
+            </Button>
+            <Button variant="outline" onClick={volver} className="flex-1">
+              Volver
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 
   return (
     <Card className="w-full max-w-md mx-auto">
