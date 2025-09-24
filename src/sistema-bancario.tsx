@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import * as core from "./lib/core";
+import { Cliente } from "./backend/Cliente.ts";
 
 // Interfaces
 type Movimiento = {
@@ -118,7 +119,17 @@ const FormularioRegistro = ({
     ).every((key: keyof UserData) => formData[key].trim() !== "");
 
     if (allFieldsFilled) {
-      if (onRegistrar(formData)) {
+      const registroUsuario = new Cliente({
+        nombre: formData.nombre,
+        apellido: "", //TODO: agregar apellido al formulario
+        usuario: "", //TODO: agregar usuario al formulario
+        documento: formData.cedula,
+        direccion: "", //TODO: agregar direccion al formulario
+        contrasena: formData.password,
+        saldo: 0,
+        historial: [] as string[],
+      }).guardar();
+      if (registroUsuario) {
         alert("Usuario registrado exitosamente");
         setPantalla("menu");
       } else {
