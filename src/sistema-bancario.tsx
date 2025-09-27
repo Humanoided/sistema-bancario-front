@@ -6,7 +6,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Wallet, Eye, Banknote, History, KeyRound, UserRound } from "lucide-react";
+import {
+  Wallet,
+  Eye,
+  Banknote,
+  History,
+  KeyRound,
+  UserRound,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +21,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import * as core from "./lib/core";
 import { Moon, Sun } from "lucide-react";
-
 
 // Interfaces
 type Movimiento = {
@@ -122,7 +128,17 @@ const FormularioRegistro = ({
     ).every((key: keyof UserData) => formData[key].trim() !== "");
 
     if (allFieldsFilled) {
-      if (onRegistrar(formData)) {
+      const registroUsuario = new Cliente({
+        nombre: formData.nombre,
+        apellido: "", //TODO: agregar apellido al formulario
+        usuario: "", //TODO: agregar usuario al formulario
+        documento: formData.cedula,
+        direccion: "", //TODO: agregar direccion al formulario
+        contrasena: formData.password,
+        saldo: 0,
+        historial: [] as string[],
+      }).guardar();
+      if (registroUsuario) {
         alert("Usuario registrado exitosamente");
         setPantalla("menu");
       } else {
@@ -323,67 +339,92 @@ const Dashboard = ({
   };
 
   if (vista === "principal") {
-   return (
-  <Card className="w-full max-w-xl mx-auto card-elevated">
-    <CardHeader className="pb-2">
-      <CardTitle className="text-xl sm:text-2xl">
-        Hola, <span className="font-semibold">{usuario.nombre}</span>
-      </CardTitle>
-      <CardDescription className="flex items-center gap-2">
-        <span className="text-sm">Saldo actual</span>
-        <span className="inline-flex items-center rounded-full border border-border px-3 py-1 text-sm font-medium bg-card">
-          ${usuario.saldo.toLocaleString()}
-        </span>
-      </CardDescription>
-    </CardHeader>
+    return (
+      <Card className="w-full max-w-xl mx-auto card-elevated">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xl sm:text-2xl">
+            Hola, <span className="font-semibold">{usuario.nombre}</span>
+          </CardTitle>
+          <CardDescription className="flex items-center gap-2">
+            <span className="text-sm">Saldo actual</span>
+            <span className="inline-flex items-center rounded-full border border-border px-3 py-1 text-sm font-medium bg-card">
+              ${usuario.saldo.toLocaleString()}
+            </span>
+          </CardDescription>
+        </CardHeader>
 
-    <CardContent className="space-y-6">
-      {mensaje && (
-        <Alert>
-          <AlertDescription>{mensaje}</AlertDescription>
-        </Alert>
-      )}
+        <CardContent className="space-y-6">
+          {mensaje && (
+            <Alert>
+              <AlertDescription>{mensaje}</AlertDescription>
+            </Alert>
+          )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Button onClick={() => setVista("retirar")} className="h-11 rounded-xl font-medium">
-          <Wallet className="mr-2 h-5 w-5" />
-          Retirar
-        </Button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Button
+              onClick={() => setVista("retirar")}
+              className="h-11 rounded-xl font-medium"
+            >
+              <Wallet className="mr-2 h-5 w-5" />
+              Retirar
+            </Button>
 
-        <Button onClick={() => setVista("consultar")} variant="secondary" className="h-11 rounded-xl font-medium btn-secondary-dark">
-  <Eye className="mr-2 h-5 w-5" />
-  Consultar Saldo
-</Button>
+            <Button
+              onClick={() => setVista("consultar")}
+              variant="secondary"
+              className="h-11 rounded-xl font-medium btn-secondary-dark"
+            >
+              <Eye className="mr-2 h-5 w-5" />
+              Consultar Saldo
+            </Button>
 
-<Button onClick={() => setVista("consignar")} variant="secondary" className="h-11 rounded-xl font-medium btn-secondary-dark">
-  <Banknote className="mr-2 h-5 w-5" />
-  Consignar
-</Button>
+            <Button
+              onClick={() => setVista("consignar")}
+              variant="secondary"
+              className="h-11 rounded-xl font-medium btn-secondary-dark"
+            >
+              <Banknote className="mr-2 h-5 w-5" />
+              Consignar
+            </Button>
 
-<Button onClick={() => setVista("movimientos")} variant="secondary" className="h-11 rounded-xl font-medium btn-secondary-dark">
-  <History className="mr-2 h-5 w-5" />
-  Movimientos
-</Button>
+            <Button
+              onClick={() => setVista("movimientos")}
+              variant="secondary"
+              className="h-11 rounded-xl font-medium btn-secondary-dark"
+            >
+              <History className="mr-2 h-5 w-5" />
+              Movimientos
+            </Button>
 
-<Button onClick={() => setVista("cambiarPassword")} variant="secondary" className="h-11 rounded-xl font-medium btn-secondary-dark">
-  <KeyRound className="mr-2 h-5 w-5" />
-  Cambiar Contraseña
-</Button>
+            <Button
+              onClick={() => setVista("cambiarPassword")}
+              variant="secondary"
+              className="h-11 rounded-xl font-medium btn-secondary-dark"
+            >
+              <KeyRound className="mr-2 h-5 w-5" />
+              Cambiar Contraseña
+            </Button>
 
-<Button onClick={() => setVista("editarPerfil")} variant="secondary" className="h-11 rounded-xl font-medium btn-secondary-dark">
-  <UserRound className="mr-2 h-5 w-5" />
-  Editar Perfil
-</Button>
+            <Button
+              onClick={() => setVista("editarPerfil")}
+              variant="secondary"
+              className="h-11 rounded-xl font-medium btn-secondary-dark"
+            >
+              <UserRound className="mr-2 h-5 w-5" />
+              Editar Perfil
+            </Button>
+          </div>
 
-      </div>
-
-      <Button onClick={onCerrarSesion} variant="destructive" className="w-full h-11 rounded-xl font-semibold">
-        Cerrar Sesión
-      </Button>
-    </CardContent>
-  </Card>
-);
-
+          <Button
+            onClick={onCerrarSesion}
+            variant="destructive"
+            className="w-full h-11 rounded-xl font-semibold"
+          >
+            Cerrar Sesión
+          </Button>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
@@ -394,7 +435,7 @@ const Dashboard = ({
       operaciones={operaciones}
       mensaje={mensaje}
       setMensaje={setMensaje}
-      onActualizarUsuario={onActualizarUsuario} 
+      onActualizarUsuario={onActualizarUsuario}
     />
   );
 };
@@ -484,9 +525,9 @@ const OperacionComponent = ({
           <CardTitle>Consultar Saldo</CardTitle>
         </CardHeader>
         <CardContent>
-         <div className="text-center text-3xl font-bold mb-4">
-              ${usuario.saldo.toLocaleString()}
-         </div>
+          <div className="text-center text-3xl font-bold mb-4">
+            ${usuario.saldo.toLocaleString()}
+          </div>
 
           <Button onClick={volver} className="w-full">
             Volver
@@ -504,27 +545,39 @@ const OperacionComponent = ({
         </CardHeader>
         <CardContent>
           <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-           {usuario.movimientos.length === 0 ? (
-             <p className="text-muted-foreground">No hay movimientos registrados</p>
-           ) : (
-             usuario.movimientos.map((mov: Movimiento) => (
-               <div key={mov.id} className="mov-item text-sm">
-                 <div className="flex items-baseline justify-between">
-                   <span className="capitalize font-medium">{mov.tipo}</span>
-                   <span className={mov.tipo === "retiro" ? "mov-amount-out" : "mov-amount-in"}>
-                     {mov.tipo === "retiro" ? "-" : "+"}${mov.monto.toLocaleString()}
-                   </span>
-                 </div>
-                 <div className="mt-1 text-xs text-muted-foreground">
-                   {new Date(mov.fecha).toLocaleString()}
-                 </div>
-                 <div className="mt-1 text-xs">
-                   Saldo: <span className="font-medium">${mov.saldoNuevo.toLocaleString()}</span>
-                 </div>
-               </div>
-             ))
-           )}
-         </div>
+            {usuario.movimientos.length === 0 ? (
+              <p className="text-muted-foreground">
+                No hay movimientos registrados
+              </p>
+            ) : (
+              usuario.movimientos.map((mov: Movimiento) => (
+                <div key={mov.id} className="mov-item text-sm">
+                  <div className="flex items-baseline justify-between">
+                    <span className="capitalize font-medium">{mov.tipo}</span>
+                    <span
+                      className={
+                        mov.tipo === "retiro"
+                          ? "mov-amount-out"
+                          : "mov-amount-in"
+                      }
+                    >
+                      {mov.tipo === "retiro" ? "-" : "+"}$
+                      {mov.monto.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {new Date(mov.fecha).toLocaleString()}
+                  </div>
+                  <div className="mt-1 text-xs">
+                    Saldo:{" "}
+                    <span className="font-medium">
+                      ${mov.saldoNuevo.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
           <Button onClick={volver} className="w-full">
             Volver
           </Button>
@@ -532,79 +585,78 @@ const OperacionComponent = ({
       </Card>
     );
   }
-   
-if (vista === "editarPerfil") {
-  const [nombre, setNombre] = useState(usuario.nombre);
-  const [celular, setCelular] = useState(usuario.celular);
-  const [email, setEmail] = useState(usuario.email);
 
-  const guardar = () => {
-    const res = core.actualizarPerfil(usuario, { nombre, celular, email });
-    setMensaje(res.message);
-    if (res.success && res.usuario) {
-      onActualizarUsuario(res.usuario); // actualiza estado global
-    }
-    volver();
-  };
+  if (vista === "editarPerfil") {
+    const [nombre, setNombre] = useState(usuario.nombre);
+    const [celular, setCelular] = useState(usuario.celular);
+    const [email, setEmail] = useState(usuario.email);
 
-  return (
-    <Card className="w-full max-w-md mx-auto card-elevated">
-      <CardHeader>
-        <CardTitle>Editar Perfil</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {mensaje && (
-          <Alert className="mb-4">
-            <AlertDescription>{mensaje}</AlertDescription>
-          </Alert>
-        )}
+    const guardar = () => {
+      const res = core.actualizarPerfil(usuario, { nombre, celular, email });
+      setMensaje(res.message);
+      if (res.success && res.usuario) {
+        onActualizarUsuario(res.usuario); // actualiza estado global
+      }
+      volver();
+    };
 
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="nombre">Nombre</Label>
-            <Input
-              id="nombre"
-              type="text"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              required
-            />
+    return (
+      <Card className="w-full max-w-md mx-auto card-elevated">
+        <CardHeader>
+          <CardTitle>Editar Perfil</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {mensaje && (
+            <Alert className="mb-4">
+              <AlertDescription>{mensaje}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="nombre">Nombre</Label>
+              <Input
+                id="nombre"
+                type="text"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="celular">Celular</Label>
+              <Input
+                id="celular"
+                type="tel"
+                value={celular}
+                onChange={(e) => setCelular(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Button onClick={guardar} className="flex-1">
+                Guardar
+              </Button>
+              <Button variant="outline" onClick={volver} className="flex-1">
+                Volver
+              </Button>
+            </div>
           </div>
-          <div>
-            <Label htmlFor="celular">Celular</Label>
-            <Input
-              id="celular"
-              type="tel"
-              value={celular}
-              onChange={(e) => setCelular(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="flex gap-2">
-            <Button onClick={guardar} className="flex-1">
-              Guardar
-            </Button>
-            <Button variant="outline" onClick={volver} className="flex-1">
-              Volver
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full max-w-md mx-auto card-elevated">
@@ -699,74 +751,77 @@ export default function SistemaBancario() {
     setPantalla("menu");
   };
 
- return (
-  <div className="app-container">
-   <header className="border-b border-border bg-card">
-  <div className="app-inner py-3 flex items-center justify-end gap-3">
-    <button
-      onClick={() => (window as any).__toggleTheme()}
-      className="inline-flex items-center rounded-full border border-border px-3 py-1 text-xs hover:bg-muted transition"
-      title="Cambiar tema"
-    >
-      <Sun className="h-4 w-4 dark:hidden mr-1" />
-      <Moon className="h-4 w-4 hidden dark:inline mr-1" />
-      <span className="hidden sm:inline">Tema</span>
-    </button>
+  return (
+    <div className="app-container">
+      <header className="border-b border-border bg-card">
+        <div className="app-inner py-3 flex items-center justify-end gap-3">
+          <button
+            onClick={() => (window as any).__toggleTheme()}
+            className="inline-flex items-center rounded-full border border-border px-3 py-1 text-xs hover:bg-muted transition"
+            title="Cambiar tema"
+          >
+            <Sun className="h-4 w-4 dark:hidden mr-1" />
+            <Moon className="h-4 w-4 hidden dark:inline mr-1" />
+            <span className="hidden sm:inline">Tema</span>
+          </button>
 
-    {usuarioActual && (
-      <div className="flex items-center gap-3">
-        <span className="text-sm font-medium">{usuarioActual.nombre}</span>
-        <button
-          onClick={cerrarSesion}
-          className="inline-flex items-center rounded-full border border-border px-3 py-1 text-xs hover:bg-muted transition"
-        >
-          Cerrar sesión
-        </button>
-      </div>
-    )}
-  </div>
-</header>
+          {usuarioActual && (
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium">
+                {usuarioActual.nombre}
+              </span>
+              <button
+                onClick={cerrarSesion}
+                className="inline-flex items-center rounded-full border border-border px-3 py-1 text-xs hover:bg-muted transition"
+              >
+                Cerrar sesión
+              </button>
+            </div>
+          )}
+        </div>
+      </header>
 
-
-<div className="relative w-full h-44 sm:h-60 overflow-hidden">
-  <img
-    src="./public/banner.jpg"
-    alt="Banner Sistema Bancario"
-    className="w-full h-full object-cover scale-105"
-  />
-  <div className="absolute inset-0 bg-black/45"></div>
-  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent"></div>
-
-  <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white">
-    <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight drop-shadow">
-      INNERBANK
-    </h2>
-    <p className="text-sm sm:text-base opacity-90">
-      The Place Where You Follow Dreams
-    </p>
-  </div>
-</div>
-
-
-
-    <main className="app-inner">
-      {pantalla === "menu" && <MenuPrincipal setPantalla={setPantalla} />}
-
-      {pantalla === "registro" && (
-        <FormularioRegistro onRegistrar={registrarUsuario} setPantalla={setPantalla} />
-      )}
-
-      {pantalla === "login" && (
-        <FormularioLogin onLogin={iniciarSesion} setPantalla={setPantalla} />
-      )}
-
-      {pantalla === "dashboard" && usuarioActual && (
-        <Dashboard
-          usuario={usuarioActual}
-          onActualizarUsuario={actualizarUsuario}
-          onCerrarSesion={cerrarSesion}
+      <div className="relative w-full h-44 sm:h-60 overflow-hidden">
+        <img
+          src="./public/banner.jpg"
+          alt="Banner Sistema Bancario"
+          className="w-full h-full object-cover scale-105"
         />
-      )}
-    </main>
-  </div>
-);}
+        <div className="absolute inset-0 bg-black/45"></div>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent"></div>
+
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white">
+          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight drop-shadow">
+            INNERBANK
+          </h2>
+          <p className="text-sm sm:text-base opacity-90">
+            The Place Where You Follow Dreams
+          </p>
+        </div>
+      </div>
+
+      <main className="app-inner">
+        {pantalla === "menu" && <MenuPrincipal setPantalla={setPantalla} />}
+
+        {pantalla === "registro" && (
+          <FormularioRegistro
+            onRegistrar={registrarUsuario}
+            setPantalla={setPantalla}
+          />
+        )}
+
+        {pantalla === "login" && (
+          <FormularioLogin onLogin={iniciarSesion} setPantalla={setPantalla} />
+        )}
+
+        {pantalla === "dashboard" && usuarioActual && (
+          <Dashboard
+            usuario={usuarioActual}
+            onActualizarUsuario={actualizarUsuario}
+            onCerrarSesion={cerrarSesion}
+          />
+        )}
+      </main>
+    </div>
+  );
+}

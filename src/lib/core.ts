@@ -10,7 +10,7 @@ type Movimiento = {
   saldoNuevo: number;
 };
 
-type Usuario = {
+export type Usuario = {
   id: string;
   nombre: string;
   cedula: string;
@@ -23,7 +23,7 @@ type Usuario = {
   bloqueado: boolean;
 };
 
-type UserData = Omit<
+export type UserData = Omit<
   Usuario,
   "id" | "saldo" | "movimientos" | "intentosFallidos" | "bloqueado"
 > & {
@@ -153,10 +153,9 @@ export const actualizarPerfil = (
   return { success: true, message: "Datos actualizados", usuario: actualizado };
 };
 
-
 const agregarMovimiento = (
   usuario: Usuario,
-  tipo: string,
+  tipo: "retiro" | "consignacion",
   monto: number
 ): Usuario => {
   const movimiento = {
@@ -198,7 +197,7 @@ export const consignar = (usuario: Usuario, monto: number) => {
   if (monto <= 0) {
     return { success: false, message: "El monto debe ser mayor a 0" };
   }
-  const usuarioActualizado = agregarMovimiento(usuario, "consignación", monto);
+  const usuarioActualizado = agregarMovimiento(usuario, "consignacion", monto);
   return {
     success: true,
     message: `Consignación exitosa. Saldo actual: $${usuarioActualizado.saldo.toLocaleString()}`,
