@@ -9,6 +9,23 @@
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>sistema-bancario</title>
+    <script>
+  (function () {
+    const KEY = "theme";
+    const root = document.documentElement;
+    const saved = localStorage.getItem(KEY);
+    if (saved === "dark" || (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+    window.__toggleTheme = function () {
+      const isDark = root.classList.toggle("dark");
+      localStorage.setItem(KEY, isDark ? "dark" : "light");
+    };
+  })();
+</script>
+
   </head>
   <body>
     <div id="root"></div>

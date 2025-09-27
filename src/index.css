@@ -221,3 +221,23 @@
     transition: background-color 9999s ease-in-out 0s;
   }
 }
+
+@layer components {
+  .app-container { @apply min-h-dvh bg-background; }
+  .app-inner { @apply mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8 py-8; }
+
+  .card-elevated {
+    @apply bg-card text-card-foreground border border-border rounded-xl shadow-sm;
+  }
+
+  .h-title { @apply text-2xl sm:text-3xl font-semibold tracking-tight; }
+  .h-subtitle { @apply text-muted-foreground; }
+
+  .actions-grid { @apply grid grid-cols-1 sm:grid-cols-2 gap-3; }
+
+  .mov-item { @apply p-3 rounded-xl border border-border bg-card; }
+  .mov-amount-out { @apply text-destructive font-medium; } 
+  .mov-amount-in  { @apply text-emerald-600 dark:text-emerald-400 font-medium; } 
+  
+  
+}

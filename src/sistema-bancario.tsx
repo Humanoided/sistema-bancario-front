@@ -6,12 +6,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Wallet, Eye, Banknote, History, KeyRound, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import * as core from "./lib/core";
+import { Moon, Sun } from "lucide-react";
+
 
 // Interfaces
 type Movimiento = {
@@ -77,7 +80,7 @@ const MenuPrincipal = ({
 }: {
   setPantalla: (pantalla: Pantalla) => void;
 }) => (
-  <Card className="w-full max-w-md mx-auto">
+  <Card className="w-full max-w-md mx-auto card-elevated">
     <CardHeader>
       <CardTitle>Sistema Bancario</CardTitle>
       <CardDescription>Selecciona una opción</CardDescription>
@@ -138,7 +141,7 @@ const FormularioRegistro = ({
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="w-full max-w-md mx-auto card-elevated">
       <CardHeader>
         <CardTitle>Registro de Usuario</CardTitle>
       </CardHeader>
@@ -235,7 +238,7 @@ const FormularioLogin = ({
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="w-full max-w-md mx-auto card-elevated">
       <CardHeader>
         <CardTitle>Iniciar Sesión</CardTitle>
       </CardHeader>
@@ -320,70 +323,67 @@ const Dashboard = ({
   };
 
   if (vista === "principal") {
-    return (
-      <Card className="w-full max-w-md mx-auto">
-        <CardHeader>
-          <CardTitle>Bienvenido, {usuario.nombre}</CardTitle>
-          <CardDescription>
-            Saldo actual: ${usuario.saldo.toLocaleString()}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {mensaje && (
-            <Alert>
-              <AlertDescription>{mensaje}</AlertDescription>
-            </Alert>
-          )}
-          <Button onClick={() => setVista("retirar")} className="w-full">
-            Retirar
-          </Button>
-          <Button
-            onClick={() => setVista("consultar")}
-            variant="outline"
-            className="w-full"
-          >
-            Consultar Saldo
-          </Button>
-          <Button
-            onClick={() => setVista("consignar")}
-            variant="outline"
-            className="w-full"
-          >
-            Consignar
-          </Button>
-          <Button
-            onClick={() => setVista("movimientos")}
-            variant="outline"
-            className="w-full"
-          >
-            Consultar Movimientos
-          </Button>
-          <Button
-            onClick={() => setVista("cambiarPassword")}
-            variant="outline"
-            className="w-full"
-          >
-            Cambiar Contraseña
-          </Button>
-          <Button
-            onClick={() => setVista("editarPerfil")}
-            variant="outline"
-            className="w-full"
->
-           Editar Perfil
-          </Button>
+   return (
+  <Card className="w-full max-w-xl mx-auto card-elevated">
+    <CardHeader className="pb-2">
+      <CardTitle className="text-xl sm:text-2xl">
+        Hola, <span className="font-semibold">{usuario.nombre}</span>
+      </CardTitle>
+      <CardDescription className="flex items-center gap-2">
+        <span className="text-sm">Saldo actual</span>
+        <span className="inline-flex items-center rounded-full border border-border px-3 py-1 text-sm font-medium bg-card">
+          ${usuario.saldo.toLocaleString()}
+        </span>
+      </CardDescription>
+    </CardHeader>
 
-          <Separator />
-          <Button
-            onClick={onCerrarSesion}
-            variant="destructive"
-            className="w-full"
-          >
-            Cerrar Sesión
-          </Button>
-        </CardContent>
-      </Card>
-    );
+    <CardContent className="space-y-6">
+      {mensaje && (
+        <Alert>
+          <AlertDescription>{mensaje}</AlertDescription>
+        </Alert>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Button onClick={() => setVista("retirar")} className="h-11 rounded-xl font-medium">
+          <Wallet className="mr-2 h-5 w-5" />
+          Retirar
+        </Button>
+
+        <Button onClick={() => setVista("consultar")} variant="secondary" className="h-11 rounded-xl font-medium btn-secondary-dark">
+  <Eye className="mr-2 h-5 w-5" />
+  Consultar Saldo
+</Button>
+
+<Button onClick={() => setVista("consignar")} variant="secondary" className="h-11 rounded-xl font-medium btn-secondary-dark">
+  <Banknote className="mr-2 h-5 w-5" />
+  Consignar
+</Button>
+
+<Button onClick={() => setVista("movimientos")} variant="secondary" className="h-11 rounded-xl font-medium btn-secondary-dark">
+  <History className="mr-2 h-5 w-5" />
+  Movimientos
+</Button>
+
+<Button onClick={() => setVista("cambiarPassword")} variant="secondary" className="h-11 rounded-xl font-medium btn-secondary-dark">
+  <KeyRound className="mr-2 h-5 w-5" />
+  Cambiar Contraseña
+</Button>
+
+<Button onClick={() => setVista("editarPerfil")} variant="secondary" className="h-11 rounded-xl font-medium btn-secondary-dark">
+  <UserRound className="mr-2 h-5 w-5" />
+  Editar Perfil
+</Button>
+
+      </div>
+
+      <Button onClick={onCerrarSesion} variant="destructive" className="w-full h-11 rounded-xl font-semibold">
+        Cerrar Sesión
+      </Button>
+    </CardContent>
+  </Card>
+);
+
   }
 
   return (
@@ -479,14 +479,15 @@ const OperacionComponent = ({
 
   if (vista === "consultar") {
     return (
-      <Card className="w-full max-w-md mx-auto">
+      <Card className="w-full max-w-md mx-auto card-elevated">
         <CardHeader>
           <CardTitle>Consultar Saldo</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center text-2xl font-bold mb-4">
-            ${usuario.saldo.toLocaleString()}
-          </div>
+         <div className="text-center text-3xl font-bold mb-4">
+              ${usuario.saldo.toLocaleString()}
+         </div>
+
           <Button onClick={volver} className="w-full">
             Volver
           </Button>
@@ -497,37 +498,33 @@ const OperacionComponent = ({
 
   if (vista === "movimientos") {
     return (
-      <Card className="w-full max-w-lg mx-auto">
+      <Card className="w-full max-w-lg mx-auto card-elevated">
         <CardHeader>
           <CardTitle>Historial de Movimientos</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2 max-h-64 overflow-y-auto mb-4">
-            {usuario.movimientos.length === 0 ? (
-              <p>No hay movimientos registrados</p>
-            ) : (
-              usuario.movimientos.map((mov: Movimiento) => (
-                <div key={mov.id} className="p-2 border rounded text-sm">
-                  <div className="flex justify-between">
-                    <span className="capitalize font-medium">{mov.tipo}</span>
-                    <span
-                      className={
-                        mov.tipo === "retiro"
-                          ? "text-red-600"
-                          : "text-green-600"
-                      }
-                    >
-                      ${mov.monto.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="text-xs text-gray-500">{mov.fecha}</div>
-                  <div className="text-xs">
-                    Saldo: ${mov.saldoNuevo.toLocaleString()}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+           {usuario.movimientos.length === 0 ? (
+             <p className="text-muted-foreground">No hay movimientos registrados</p>
+           ) : (
+             usuario.movimientos.map((mov: Movimiento) => (
+               <div key={mov.id} className="mov-item text-sm">
+                 <div className="flex items-baseline justify-between">
+                   <span className="capitalize font-medium">{mov.tipo}</span>
+                   <span className={mov.tipo === "retiro" ? "mov-amount-out" : "mov-amount-in"}>
+                     {mov.tipo === "retiro" ? "-" : "+"}${mov.monto.toLocaleString()}
+                   </span>
+                 </div>
+                 <div className="mt-1 text-xs text-muted-foreground">
+                   {new Date(mov.fecha).toLocaleString()}
+                 </div>
+                 <div className="mt-1 text-xs">
+                   Saldo: <span className="font-medium">${mov.saldoNuevo.toLocaleString()}</span>
+                 </div>
+               </div>
+             ))
+           )}
+         </div>
           <Button onClick={volver} className="w-full">
             Volver
           </Button>
@@ -551,7 +548,7 @@ if (vista === "editarPerfil") {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="w-full max-w-md mx-auto card-elevated">
       <CardHeader>
         <CardTitle>Editar Perfil</CardTitle>
       </CardHeader>
@@ -610,7 +607,7 @@ if (vista === "editarPerfil") {
 
 
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="w-full max-w-md mx-auto card-elevated">
       <CardHeader>
         <CardTitle>{getTitulo()}</CardTitle>
       </CardHeader>
@@ -702,18 +699,67 @@ export default function SistemaBancario() {
     setPantalla("menu");
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+ return (
+  <div className="app-container">
+   <header className="border-b border-border bg-card">
+  <div className="app-inner py-3 flex items-center justify-end gap-3">
+    <button
+      onClick={() => (window as any).__toggleTheme()}
+      className="inline-flex items-center rounded-full border border-border px-3 py-1 text-xs hover:bg-muted transition"
+      title="Cambiar tema"
+    >
+      <Sun className="h-4 w-4 dark:hidden mr-1" />
+      <Moon className="h-4 w-4 hidden dark:inline mr-1" />
+      <span className="hidden sm:inline">Tema</span>
+    </button>
+
+    {usuarioActual && (
+      <div className="flex items-center gap-3">
+        <span className="text-sm font-medium">{usuarioActual.nombre}</span>
+        <button
+          onClick={cerrarSesion}
+          className="inline-flex items-center rounded-full border border-border px-3 py-1 text-xs hover:bg-muted transition"
+        >
+          Cerrar sesión
+        </button>
+      </div>
+    )}
+  </div>
+</header>
+
+
+<div className="relative w-full h-44 sm:h-60 overflow-hidden">
+  <img
+    src="./public/banner.jpg"
+    alt="Banner Sistema Bancario"
+    className="w-full h-full object-cover scale-105"
+  />
+  <div className="absolute inset-0 bg-black/45"></div>
+  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent"></div>
+
+  <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white">
+    <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight drop-shadow">
+      INNERBANK
+    </h2>
+    <p className="text-sm sm:text-base opacity-90">
+      The Place Where You Follow Dreams
+    </p>
+  </div>
+</div>
+
+
+
+    <main className="app-inner">
       {pantalla === "menu" && <MenuPrincipal setPantalla={setPantalla} />}
+
       {pantalla === "registro" && (
-        <FormularioRegistro
-          onRegistrar={registrarUsuario}
-          setPantalla={setPantalla}
-        />
+        <FormularioRegistro onRegistrar={registrarUsuario} setPantalla={setPantalla} />
       )}
+
       {pantalla === "login" && (
         <FormularioLogin onLogin={iniciarSesion} setPantalla={setPantalla} />
       )}
+
       {pantalla === "dashboard" && usuarioActual && (
         <Dashboard
           usuario={usuarioActual}
@@ -721,6 +767,6 @@ export default function SistemaBancario() {
           onCerrarSesion={cerrarSesion}
         />
       )}
-    </div>
-  );
-}
+    </main>
+  </div>
+);}
