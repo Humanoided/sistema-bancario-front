@@ -1,6 +1,6 @@
 import type { UserData, Usuario } from "@/lib/core";
 import { readDb, writeDb } from "@/lib/database";
-import { registrarUsuario, agregarMovimiento } from "@/lib/core";
+import { registrarUsuario } from "@/lib/core";
 
 interface ICliente {
   nombre: string;
@@ -133,6 +133,7 @@ export class Cliente {
       ...(this as unknown as Usuario),
     };
     writeDb(usuarios);
+    return true;
   }
 
   registrarUsuario(datos: UserData): boolean {

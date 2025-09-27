@@ -21,6 +21,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import * as core from "./lib/core";
 import { Moon, Sun } from "lucide-react";
+import { Cliente } from "./backend/Cliente.ts";
 
 // Interfaces
 type Movimiento = {
@@ -461,6 +462,9 @@ const OperacionComponent = ({
   const [monto, setMonto] = useState("");
   const [passwordActual, setPasswordActual] = useState("");
   const [passwordNuevo, setPasswordNuevo] = useState("");
+  const [nombre, setNombre] = useState(usuario.nombre);
+  const [celular, setCelular] = useState(usuario.celular);
+  const [email, setEmail] = useState(usuario.email);
 
   const handleSubmit = () => {
     if (vista === "retirar" || vista === "consignar") {
@@ -587,10 +591,6 @@ const OperacionComponent = ({
   }
 
   if (vista === "editarPerfil") {
-    const [nombre, setNombre] = useState(usuario.nombre);
-    const [celular, setCelular] = useState(usuario.celular);
-    const [email, setEmail] = useState(usuario.email);
-
     const guardar = () => {
       const res = core.actualizarPerfil(usuario, { nombre, celular, email });
       setMensaje(res.message);
@@ -756,6 +756,7 @@ export default function SistemaBancario() {
       <header className="border-b border-border bg-card">
         <div className="app-inner py-3 flex items-center justify-end gap-3">
           <button
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             onClick={() => (window as any).__toggleTheme()}
             className="inline-flex items-center rounded-full border border-border px-3 py-1 text-xs hover:bg-muted transition"
             title="Cambiar tema"
