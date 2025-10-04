@@ -1,6 +1,11 @@
-import type { UserData, Usuario } from "@/lib/core";
+import type { Cuenta, UserData, Usuario } from "@/lib/core";
+import {
+  consignar as consignarCore,
+  obtenerCuenta as obtenerCuentaCore,
+  registrarUsuario,
+  retirar as retirarCore,
+} from "@/lib/core";
 import { readDb, writeDb } from "@/lib/database";
-import { registrarUsuario } from "@/lib/core";
 
 interface ICliente {
   nombre: string;
@@ -29,10 +34,9 @@ const createDefaultAccounts = (): Usuario["cuentas"] => ({
 });
 
 export class Cliente {
-  private nombre: string;
+  private data: Usuario;
   private apellido: string;
   private userName: string;
-  private documento: string;
   private direccion: string;
   private contrasena: string;
   private saldo: number;
@@ -46,11 +50,14 @@ export class Cliente {
     documento,
     direccion,
     contrasena,
-    saldo = 0,
+    celular = "",
+    email = "",
+    cuentas,
+    intentosFallidos = 0,
+    bloqueado = false,
   }: ICliente) {
-    this.nombre = nombre;
     this.apellido = apellido;
-    this.documento = documento;
+    this.userName = usuario;
     this.direccion = direccion;
     this.contrasena = contrasena;
     this.saldo = saldo;
@@ -65,109 +72,112 @@ export class Cliente {
     agregarMovimiento(this as unknown as Usuario, "retiro", monto);
     const usuarios = readDb();
     const usuario = usuarios[idUser];
-    if (usuario) {
-      agregarMovimiento(usuario, "consignacion", monto);
+    if (!usuario) {
+      return `Usuario no encontrado`;
     }
-  } */
 
-  consultarSaldo() {
-    return `El saldo de ${this.nombre} es $${this.saldo}`;
+    const resultado = consignarCore(usuario, monto, cuentaId);
+    if (!resultado.success || !resultado.usuario || !resultado.cuenta) {
+      return resultado.message ?? `No fue posible registrar la consignación`;
+    }
+
+    if (idUser === this.data.id) {
+      this.sincronizar(resultado.usuario);
+    }
+
+    return `Consignacion exitosa. Nuevo saldo en ${resultado.cuenta.tipo} $${resultado.cuenta.saldo}`;
   }
 
-  consignaciones(monto: number, idUser: string) {
-    if (monto > 0) {
-      this.saldo += monto;
-      this.movimientoV2("consignacion", monto, idUser);
-      this.guardar();
-      return `Consignacion exitosa. Nuevo saldo $${this.saldo}`;
-    } else {
-      return `El monto debe ser mayor a 0`;
-    }
-  }
-
-  retiros(retiro: number) {
-    if (retiro > 0 && retiro <= this.saldo) {
-      this.saldo -= retiro;
-      this.movimientoV2("retiro", retiro, this.documento);
-      this.guardar();
-      return `Retiro exitoso. Saldo actual $${this.saldo}`;
-    } else {
+  retiros(retiro: number, cuentaId: string = "ahorros") {
+    if (retiro <= 0) {
       return `Revise monto a retirar. Monto a retirar debe ser mayor a 0 y no puede ser mayor al saldo`;
     }
-  }
 
-  consultarMovimientos() {
-    if (this.historial.length === 0) {
-      return `${this.nombre} no tiene movimientos registrados`;
+    const usuarios = readDb();
+    const usuario = usuarios[this.data.id];
+    if (!usuario) {
+      return `Usuario no encontrado`;
     }
-    return `historial de movimientos ${this.nombre}: \n${this.historial.join(
-      "\n"
-    )}`;
+
+    const resultado = retirarCore(usuario, retiro, cuentaId);
+    if (!resultado.success || !resultado.usuario || !resultado.cuenta) {
+      return resultado.message ?? `No fue posible registrar el retiro`;
+    }
+
+    this.sincronizar(resultado.usuario);
+    return `Retiro exitoso. Saldo actual en ${resultado.cuenta.tipo} $${resultado.cuenta.saldo}`;
   }
 
-  transferencias(monto: number, cliente: Cliente) {
+  consultarMovimientos(cuentaId: string = "ahorros") {
+    const cuenta = this.obtenerCuentaLocal(cuentaId);
+    if (cuenta.movimientos.length === 0) {
+      return `${this.data.nombre} no tiene movimientos registrados en ${cuenta.tipo}`;
+    }
+
+    const historial = cuenta.movimientos
+      .map(
+        (mov) =>
+          `${mov.fecha} - ${mov.tipo}: $${mov.monto.toLocaleString()} (Saldo: $${mov.saldoNuevo.toLocaleString()})`
+      )
+      .join("\n");
+
+    return `historial de movimientos ${this.data.nombre} (${cuenta.tipo}): \n${historial}`;
+  }
+
+  transferencias(
+    monto: number,
+    cliente: Cliente,
+    cuentaOrigen: string = "ahorros",
+    cuentaDestino: string = "ahorros"
+  ) {
     if (monto <= 0) {
       return `Debe ser mayor a 0`;
     }
-    if (monto > this.saldo) {
+
+    const usuarios = readDb();
+    const origen = usuarios[this.data.id];
+    if (!origen) {
+      return `Usuario no encontrado`;
+    }
+
+    const cuentaOrigenDb = obtenerCuentaCore(origen, cuentaOrigen);
+    if (!cuentaOrigenDb || monto > cuentaOrigenDb.saldo) {
       return `Fondos insuficientes`;
     }
-    this.saldo -= monto;
-    cliente.saldo += monto;
-    this.movimientoV2("retiro", monto, this.documento);
-    cliente.movimientoV2("consignacion", monto, this.documento);
-    this.guardar();
-    cliente.guardar();
+
+    const resultadoRetiro = retirarCore(origen, monto, cuentaOrigen);
+    if (!resultadoRetiro.success || !resultadoRetiro.usuario || !resultadoRetiro.cuenta) {
+      return resultadoRetiro.message ?? `No fue posible realizar la transferencia`;
+    }
+
+    const usuariosActualizados = readDb();
+    const destinoUsuario = usuariosActualizados[cliente.id];
+    if (!destinoUsuario) {
+      return `Cliente destino no encontrado`;
+    }
+
+    const resultadoConsignacion = consignarCore(destinoUsuario, monto, cuentaDestino);
+    if (!resultadoConsignacion.success || !resultadoConsignacion.usuario || !resultadoConsignacion.cuenta) {
+      return resultadoConsignacion.message ?? `No fue posible realizar la transferencia`;
+    }
+
+    this.sincronizar(resultadoRetiro.usuario);
+    cliente.actualizarInstancia(resultadoConsignacion.usuario);
+
     console.log(
-      `Transferencia de $${monto} a ${cliente.nombre} exitosa. Nuevo saldo: $${this.saldo}`
+      `Transferencia de $${monto} a ${cliente.nombre} exitosa. Nuevo saldo: $${resultadoRetiro.cuenta.saldo}`
     );
-  }
-
-  movimientoV2(tipo: "retiro" | "consignacion", monto: number, idUser: string) {
-    const usuario = readDb()[idUser];
-    if (!usuario) return;
-
-    const movimiento = {
-      id: Date.now(),
-      tipo,
-      monto,
-      fecha: new Date().toLocaleString(),
-    };
-
-    const usuarioActualizado = {
-      ...usuario,
-      saldo:
-        tipo === "retiro"
-          ? usuario.saldo - movimiento.monto
-          : usuario.saldo + movimiento.monto,
-      movimientos: [...usuario.movimientos, movimiento],
-    };
   }
 
   guardar() {
     const usuarios = readDb();
-    usuarios[this.documento] = {
-      ...(this as unknown as Usuario),
-    };
+    usuarios[this.data.id] = this.clonarUsuario(this.data);
     writeDb(usuarios);
     return true;
   }
 
   registrarUsuario(datos: UserData): boolean {
-    const usuarios = readDb();
-    if (usuarios[datos.cedula]) {
-      return false; // Usuario ya existe
-    }
-    const usuario = this.createUser(
-      datos.nombre,
-      datos.cedula,
-      datos.celular,
-      datos.email,
-      datos.password
-    );
-    usuarios[datos.cedula] = usuario;
-    writeDb(usuarios);
-    return true;
+    return registrarUsuario(datos);
   }
 
   createUser(
@@ -177,6 +187,7 @@ export class Cliente {
     email: string,
     password: string
   ): Usuario {
+    const cuentas = [crearCuenta(cedula, "ahorros"), crearCuenta(cedula, "corriente")];
     return {
       id: cedula,
       nombre,
@@ -192,22 +203,25 @@ export class Cliente {
     };
   }
 
-  static cargar(usuario: string): Cliente | null {
-    const data = localStorage.getItem(usuario);
-    if (data) {
-      const obj = JSON.parse(data);
-      const cliente = new Cliente({
-        nombre: obj.nombre,
-        apellido: obj.apellido,
-        documento: obj.documento,
-        direccion: obj.direccion,
-        usuario: obj.usuario,
-        contrasena: obj.contrasena,
-        saldo: obj.saldo,
-      } as ICliente);
-      cliente.historial = obj.historial;
-      return cliente;
+  static cargar(documento: string): Cliente | null {
+    const usuarios = readDb();
+    const data = usuarios[documento];
+    if (!data) {
+      return null;
     }
-    return null;
+
+    return new Cliente({
+      nombre: data.nombre,
+      apellido: "",
+      usuario: documento,
+      documento: data.cedula,
+      direccion: "",
+      contrasena: data.password,
+      celular: data.celular,
+      email: data.email,
+      cuentas: data.cuentas,
+      intentosFallidos: data.intentosFallidos,
+      bloqueado: data.bloqueado,
+    });
   }
 }

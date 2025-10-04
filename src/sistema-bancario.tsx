@@ -83,10 +83,8 @@ const MenuPrincipal = ({
 
 // Componente de Registro
 const FormularioRegistro = ({
-  onRegistrar,
   setPantalla,
 }: {
-  onRegistrar: (data: UserData) => boolean;
   setPantalla: (pantalla: Pantalla) => void;
 }) => {
   const [formData, setFormData] = useState<UserData>({
@@ -933,10 +931,6 @@ export default function SistemaBancario() {
   const [usuarioActual, setUsuarioActual] = useState<Usuario | null>(null);
   const [pantalla, setPantalla] = useState<Pantalla>("menu");
 
-  const registrarUsuario = (datos: UserData): boolean => {
-    return core.registrarUsuario(datos);
-  };
-
   const iniciarSesion = (id: string, password: string): LoginResponse => {
     const response = core.iniciarSesion(id, password);
     if (response.success) {
@@ -1009,10 +1003,7 @@ export default function SistemaBancario() {
         {pantalla === "menu" && <MenuPrincipal setPantalla={setPantalla} />}
 
         {pantalla === "registro" && (
-          <FormularioRegistro
-            onRegistrar={registrarUsuario}
-            setPantalla={setPantalla}
-          />
+          <FormularioRegistro setPantalla={setPantalla} />
         )}
 
         {pantalla === "login" && (

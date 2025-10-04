@@ -237,6 +237,7 @@ export const actualizarPerfil = (
 
 const agregarMovimiento = (
   usuario: Usuario,
+  cuentaId: string,
   tipo: "retiro" | "consignacion",
   monto: number,
   cuentaId: TipoCuenta
@@ -255,6 +256,16 @@ const agregarMovimiento = (
     saldoNuevo: tipo === "retiro" ? cuenta.saldo - monto : cuenta.saldo + monto,
     cuenta: cuentaId,
   };
+
+  const cuentasActualizadas = usuario.cuentas.map((c) =>
+    c.id === cuenta.id
+      ? {
+          ...c,
+          saldo: movimiento.saldoNuevo,
+          movimientos: [...c.movimientos, movimiento],
+        }
+      : c
+  );
 
   const cuentaActualizada: Cuenta = {
     ...cuenta,
@@ -275,7 +286,8 @@ const agregarMovimiento = (
   };
 
   actualizarUsuario(usuarioActualizado);
-  return usuarioActualizado;
+  const cuentaActualizada = obtenerCuenta(usuarioActualizado, cuenta.id)!;
+  return { usuario: usuarioActualizado, cuenta: cuentaActualizada };
 };
 
 export const retirar = (usuario: Usuario, monto: number, cuentaId: TipoCuenta) => {
@@ -298,6 +310,7 @@ export const retirar = (usuario: Usuario, monto: number, cuentaId: TipoCuenta) =
     success: true,
     message: `Retiro exitoso. Saldo actual en ${cuentaActualizada.nombre}: $${cuentaActualizada.saldo.toLocaleString()}`,
     usuario: usuarioActualizado,
+    cuenta: cuentaActualizada,
   };
 };
 
@@ -378,6 +391,7 @@ export const consignar = (
     success: true,
     message: `Consignación exitosa. Saldo actual en ${cuentaDestinoActualizada.nombre}: $${cuentaDestinoActualizada.saldo.toLocaleString()}`,
     usuario: usuarioActualizado,
+    cuenta: cuentaActualizada,
   };
 };
 
