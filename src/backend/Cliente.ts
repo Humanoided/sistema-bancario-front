@@ -1,4 +1,4 @@
-import type { Cuenta, UserData, Usuario } from "@/lib/core";
+import type { Cuenta, UserData, Usuario, TipoCuenta } from "@/lib/core";
 import {
   consignar as consignarCore,
   obtenerCuenta as obtenerCuentaCore,
@@ -14,8 +14,13 @@ interface ICliente {
   documento: string;
   direccion: string;
   contrasena: string;
-  saldo: number;
-  historial: string[];
+  saldo?: number;
+  historial?: string[];
+  celular?: string;
+  email?: string;
+  cuentas?: Usuario["cuentas"];
+  intentosFallidos?: number;
+  bloqueado?: boolean;
 }
 
 const createDefaultAccounts = (): Usuario["cuentas"] => ({
@@ -31,6 +36,13 @@ const createDefaultAccounts = (): Usuario["cuentas"] => ({
     saldo: 0,
     movimientos: [],
   },
+});
+
+const crearCuenta = (tipo: TipoCuenta): Cuenta => ({
+  id: tipo,
+  nombre: tipo === "ahorros" ? "Cuenta de ahorros" : "Cuenta corriente",
+  saldo: 0,
+  movimientos: [],
 });
 
 export class Cliente {
@@ -53,17 +65,33 @@ export class Cliente {
     celular = "",
     email = "",
     cuentas,
+    saldo = 0,
+    historial = [],
     intentosFallidos = 0,
     bloqueado = false,
   }: ICliente) {
     this.apellido = apellido;
     this.userName = usuario;
-    this.direccion = direccion;
-    this.contrasena = contrasena;
-    this.saldo = saldo;
-    this.userName = usuario;
-    this.historial = [];
-    this.cuentas = createDefaultAccounts();
+  this.direccion = direccion;
+  this.contrasena = contrasena;
+  this.saldo = saldo ?? 0;
+  this.historial = historial ?? [];
+  this.cuentas = cuentas ?? createDefaultAccounts();
+
+    // minimal data object to satisfy this.data until cargar or createUser is used
+    this.data = {
+      id: documento,
+      nombre: nombre,
+      cedula: documento,
+      celular: celular ?? "",
+      email: email ?? "",
+      password: contrasena,
+      saldo: this.saldo ?? 0,
+      movimientos: [],
+      cuentas: this.cuentas,
+      intentosFallidos: intentosFallidos ?? 0,
+      bloqueado: bloqueado ?? false,
+    } as unknown as Usuario;
   }
 
   /* movimiento(descripcion: string, monto: number, idUser: string) {
@@ -85,10 +113,11 @@ export class Cliente {
       this.sincronizar(resultado.usuario);
     }
 
-    return `Consignacion exitosa. Nuevo saldo en ${resultado.cuenta.tipo} $${resultado.cuenta.saldo}`;
+  return `Consignacion exitosa. Nuevo saldo en ${resultado.cuenta.id} $${resultado.cuenta.saldo}`;
   }
+  */
 
-  retiros(retiro: number, cuentaId: string = "ahorros") {
+  retiros(retiro: number, cuentaId: TipoCuenta = "ahorros") {
     if (retiro <= 0) {
       return `Revise monto a retirar. Monto a retirar debe ser mayor a 0 y no puede ser mayor al saldo`;
     }
@@ -105,13 +134,13 @@ export class Cliente {
     }
 
     this.sincronizar(resultado.usuario);
-    return `Retiro exitoso. Saldo actual en ${resultado.cuenta.tipo} $${resultado.cuenta.saldo}`;
+  return `Retiro exitoso. Saldo actual en ${resultado.cuenta.id} $${resultado.cuenta.saldo}`;
   }
 
-  consultarMovimientos(cuentaId: string = "ahorros") {
+  consultarMovimientos(cuentaId: TipoCuenta = "ahorros") {
     const cuenta = this.obtenerCuentaLocal(cuentaId);
     if (cuenta.movimientos.length === 0) {
-      return `${this.data.nombre} no tiene movimientos registrados en ${cuenta.tipo}`;
+  return `${this.data.nombre} no tiene movimientos registrados en ${cuenta.id}`;
     }
 
     const historial = cuenta.movimientos
@@ -121,14 +150,14 @@ export class Cliente {
       )
       .join("\n");
 
-    return `historial de movimientos ${this.data.nombre} (${cuenta.tipo}): \n${historial}`;
+  return `historial de movimientos ${this.data.nombre} (${cuenta.id}): \n${historial}`;
   }
 
   transferencias(
     monto: number,
     cliente: Cliente,
-    cuentaOrigen: string = "ahorros",
-    cuentaDestino: string = "ahorros"
+    cuentaOrigen: TipoCuenta = "ahorros",
+    cuentaDestino: TipoCuenta = "ahorros"
   ) {
     if (monto <= 0) {
       return `Debe ser mayor a 0`;
@@ -176,6 +205,33 @@ export class Cliente {
     return true;
   }
 
+  // helpers & small stubs used by methods in this class
+  get id() {
+    return this.data?.id;
+  }
+
+  get nombre() {
+    return this.data?.nombre;
+  }
+
+  sincronizar(usuario: Usuario) {
+    this.data = usuario;
+    this.saldo = usuario.saldo;
+    this.cuentas = usuario.cuentas;
+  }
+
+  actualizarInstancia(usuario: Usuario) {
+    this.sincronizar(usuario);
+  }
+
+  clonarUsuario(usuario: Usuario): Usuario {
+    return JSON.parse(JSON.stringify(usuario)) as Usuario;
+  }
+
+  obtenerCuentaLocal(cuentaId: TipoCuenta): Cuenta {
+    return this.cuentas[cuentaId];
+  }
+
   registrarUsuario(datos: UserData): boolean {
     return registrarUsuario(datos);
   }
@@ -187,7 +243,7 @@ export class Cliente {
     email: string,
     password: string
   ): Usuario {
-    const cuentas = [crearCuenta(cedula, "ahorros"), crearCuenta(cedula, "corriente")];
+  const cuentas = [crearCuenta("ahorros"), crearCuenta("corriente")];
     return {
       id: cedula,
       nombre,

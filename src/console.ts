@@ -1,7 +1,6 @@
 import inquirer from "inquirer";
-import type { Movimiento, Usuario } from "./lib/core";
-import * as core from "./lib/core";
 import type { TipoCuenta, Usuario as UsuarioCore } from "./lib/core";
+import * as core from "./lib/core";
 
 type Usuario = UsuarioCore;
 

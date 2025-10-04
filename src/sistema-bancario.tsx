@@ -84,8 +84,10 @@ const MenuPrincipal = ({
 // Componente de Registro
 const FormularioRegistro = ({
   setPantalla,
+  onRegistrar,
 }: {
   setPantalla: (pantalla: Pantalla) => void;
+  onRegistrar: (formData: UserData) => boolean;
 }) => {
   const [formData, setFormData] = useState<UserData>({
     nombre: "",
@@ -1001,9 +1003,9 @@ export default function SistemaBancario() {
 
       <main className="app-inner">
         {pantalla === "menu" && <MenuPrincipal setPantalla={setPantalla} />}
-
+          <FormularioRegistro setPantalla={setPantalla} onRegistrar={core.registrarUsuario} />
         {pantalla === "registro" && (
-          <FormularioRegistro setPantalla={setPantalla} />
+          <FormularioRegistro setPantalla={setPantalla} onRegistrar={core.registrarUsuario} />
         )}
 
         {pantalla === "login" && (

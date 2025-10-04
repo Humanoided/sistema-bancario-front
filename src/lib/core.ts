@@ -204,6 +204,10 @@ export const actualizarUsuario = (usuarioActualizado: Usuario) => {
   writeDb(usuarios);
 };
 
+export const obtenerCuenta = (usuario: Usuario, cuentaId: TipoCuenta): Cuenta | undefined => {
+  return usuario.cuentas[cuentaId];
+};
+
 export const actualizarPerfil = (
   usuario: Usuario,
   cambios: Partial<Pick<Usuario, "nombre" | "celular" | "email">>
@@ -237,14 +241,15 @@ export const actualizarPerfil = (
 
 const agregarMovimiento = (
   usuario: Usuario,
-  cuentaId: string,
   tipo: "retiro" | "consignacion",
   monto: number,
   cuentaId: TipoCuenta
-): Usuario => {
+): { usuario: Usuario; cuenta: Cuenta } => {
   const cuenta = usuario.cuentas[cuentaId];
   if (!cuenta) {
-    return usuario;
+    // If account not found, return original user and a default account to keep callers safe
+    const defaultCuenta = normalizarCuenta(undefined, cuentaId);
+    return { usuario, cuenta: defaultCuenta };
   }
 
   const movimiento: Movimiento = {
@@ -257,17 +262,7 @@ const agregarMovimiento = (
     cuenta: cuentaId,
   };
 
-  const cuentasActualizadas = usuario.cuentas.map((c) =>
-    c.id === cuenta.id
-      ? {
-          ...c,
-          saldo: movimiento.saldoNuevo,
-          movimientos: [...c.movimientos, movimiento],
-        }
-      : c
-  );
-
-  const cuentaActualizada: Cuenta = {
+  const nuevaCuentaActualizada: Cuenta = {
     ...cuenta,
     saldo: movimiento.saldoNuevo,
     movimientos: [...cuenta.movimientos, movimiento],
@@ -275,7 +270,7 @@ const agregarMovimiento = (
 
   const cuentasActualizadas: Record<TipoCuenta, Cuenta> = {
     ...usuario.cuentas,
-    [cuentaId]: cuentaActualizada,
+    [cuentaId]: nuevaCuentaActualizada,
   };
 
   const usuarioActualizado: Usuario = {
@@ -286,8 +281,7 @@ const agregarMovimiento = (
   };
 
   actualizarUsuario(usuarioActualizado);
-  const cuentaActualizada = obtenerCuenta(usuarioActualizado, cuenta.id)!;
-  return { usuario: usuarioActualizado, cuenta: cuentaActualizada };
+  return { usuario: usuarioActualizado, cuenta: nuevaCuentaActualizada };
 };
 
 export const retirar = (usuario: Usuario, monto: number, cuentaId: TipoCuenta) => {
@@ -304,8 +298,9 @@ export const retirar = (usuario: Usuario, monto: number, cuentaId: TipoCuenta) =
     return { success: false, message: "Saldo insuficiente" };
   }
 
-  const usuarioActualizado = agregarMovimiento(usuario, "retiro", monto, cuentaId);
-  const cuentaActualizada = usuarioActualizado.cuentas[cuentaId];
+  const resultado = agregarMovimiento(usuario, "retiro", monto, cuentaId);
+  const usuarioActualizado = resultado.usuario;
+  const cuentaActualizada = resultado.cuenta;
   return {
     success: true,
     message: `Retiro exitoso. Saldo actual en ${cuentaActualizada.nombre}: $${cuentaActualizada.saldo.toLocaleString()}`,
@@ -361,16 +356,11 @@ export const consignar = (
       return { success: false, message: "Saldo insuficiente" };
     }
 
-    const usuarioActualizado = agregarMovimiento(
-      usuario,
-      "retiro",
-      monto,
-      cuentaOrigen
-    );
+    const resultadoRetiro = agregarMovimiento(usuario, "retiro", monto, cuentaOrigen);
+    const usuarioActualizado = resultadoRetiro.usuario;
+    const cuentaOrigenActualizada = resultadoRetiro.cuenta;
 
     agregarMovimiento(destinatarioNormalizado, "consignacion", monto, cuentaDestinoId);
-
-    const cuentaOrigenActualizada = usuarioActualizado.cuentas[cuentaOrigen];
 
     return {
       success: true,
@@ -379,19 +369,15 @@ export const consignar = (
     };
   }
 
-  const usuarioActualizado = agregarMovimiento(
-    usuario,
-    "consignacion",
-    monto,
-    cuentaDestinoId
-  );
-  const cuentaDestinoActualizada = usuarioActualizado.cuentas[cuentaDestinoId];
+  const resultado = agregarMovimiento(usuario, "consignacion", monto, cuentaDestinoId);
+  const usuarioActualizado = resultado.usuario;
+  const cuentaDestinoActualizada = resultado.cuenta;
 
   return {
     success: true,
     message: `Consignación exitosa. Saldo actual en ${cuentaDestinoActualizada.nombre}: $${cuentaDestinoActualizada.saldo.toLocaleString()}`,
     usuario: usuarioActualizado,
-    cuenta: cuentaActualizada,
+    cuenta: cuentaDestinoActualizada,
   };
 };
 
