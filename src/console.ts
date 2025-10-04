@@ -1,29 +1,11 @@
 import inquirer from "inquirer";
 import * as core from "./lib/core";
+import type { TipoCuenta, Usuario as UsuarioCore } from "./lib/core";
 
-interface Movimiento {
-  id: number; // Cambia a 'number' para coincidir con el tipo del core
-  fecha: string;
-  tipo: string;
-  monto: number;
-  saldoAnterior: number;
-  saldoNuevo: number;
-}
-
-interface Usuario {
-  id: string;
-  nombre: string;
-  cedula: string;
-  celular: string;
-  email: string;
-  password: string;
-  saldo: number;
-  movimientos: Movimiento[];
-  intentosFallidos: number;
-  bloqueado: boolean;
-}
+type Usuario = UsuarioCore;
 
 let usuarioActual: Usuario | null = null;
+let cuentaActiva: TipoCuenta = "ahorros";
 
 const mainMenu = async () => {
   const { action } = await inquirer.prompt([
@@ -64,6 +46,7 @@ const loginMenu = async () => {
     usuarioActual = response.usuario ?? null;
     if (usuarioActual) {
       console.log(`\nBienvenido, ${usuarioActual.nombre}`);
+      cuentaActiva = "ahorros";
       await dashboardMenu();
     } else {
       console.error("\nError: No se pudo obtener el usuario.");
@@ -97,14 +80,15 @@ const dashboardMenu = async () => {
     {
       type: "list",
       name: "action",
-      message: "Dashboard",
+      message: `Dashboard - Cuenta activa: ${cuentaActiva}`,
       choices: [
         { name: "1. Consultar Saldo", value: "saldo" },
         { name: "2. Retirar", value: "retirar" },
         { name: "3. Consignar", value: "consignar" },
         { name: "4. Ver Movimientos", value: "movimientos" },
         { name: "5. Cambiar Contraseña", value: "password" },
-        { name: "6. Cerrar Sesión", value: "logout" },
+        { name: "6. Cambiar Cuenta Activa", value: "cuenta" },
+        { name: "7. Cerrar Sesión", value: "logout" },
       ],
     },
   ]);
@@ -112,7 +96,10 @@ const dashboardMenu = async () => {
   switch (action) {
     case "saldo":
       if (usuarioActual) {
-        console.log(`\nSaldo actual: $${usuarioActual.saldo.toLocaleString()}`);
+        const cuenta = usuarioActual.cuentas[cuentaActiva];
+        console.log(
+          `\nSaldo actual en ${cuenta.nombre}: $${cuenta.saldo.toLocaleString()}`
+        );
       } else {
         console.error("\nError: Usuario no autenticado.");
       }
@@ -128,6 +115,9 @@ const dashboardMenu = async () => {
       break;
     case "password":
       await changePasswordMenu();
+      break;
+    case "cuenta":
+      await selectCuentaMenu();
       break;
     case "logout":
       usuarioActual = null;
@@ -146,7 +136,7 @@ const retirarMenu = async () => {
     console.error("\nError: Usuario no autenticado.");
     return;
   }
-  const response = core.retirar(usuarioActual, monto);
+  const response = core.retirar(usuarioActual, monto, cuentaActiva);
   if (response.success) {
     usuarioActual = response.usuario ?? null;
   }
@@ -154,14 +144,43 @@ const retirarMenu = async () => {
 };
 
 const consignarMenu = async () => {
-  const { monto } = await inquirer.prompt([
+  const answers = (await inquirer.prompt([
     { type: "number", name: "monto", message: "Monto a consignar:" },
-  ]);
+    {
+      type: "input",
+      name: "destinatarioId",
+      message: "ID del destinatario (enter para tu cuenta):",
+      default: usuarioActual?.id ?? "",
+      filter: (value: string) => value.trim(),
+    },
+    {
+      type: "list",
+      name: "cuentaDestino",
+      message: "Cuenta destino:",
+      choices: [
+        { name: "Cuenta de ahorros", value: "ahorros" },
+        { name: "Cuenta corriente", value: "corriente" },
+      ],
+      when: (values) =>
+        values.destinatarioId && values.destinatarioId !== usuarioActual?.id,
+    },
+  ])) as {
+    monto: number;
+    destinatarioId?: string;
+    cuentaDestino?: TipoCuenta;
+  };
+
   if (!usuarioActual) {
     console.error("\nError: Usuario no autenticado.");
     return;
   }
-  const response = core.consignar(usuarioActual, monto);
+  const response = core.consignar(
+    usuarioActual,
+    answers.monto,
+    cuentaActiva,
+    answers.destinatarioId || undefined,
+    answers.cuentaDestino
+  );
   if (response.success) {
     usuarioActual = response.usuario ?? null;
   }
@@ -173,11 +192,12 @@ const viewMovimientos = () => {
     console.error("\nError: Usuario no autenticado.");
     return;
   }
-  console.log("\n--- Historial de Movimientos ---");
-  if (usuarioActual.movimientos.length === 0) {
+  const movimientos = usuarioActual.cuentas[cuentaActiva].movimientos;
+  console.log(`\n--- Historial de Movimientos (${cuentaActiva}) ---`);
+  if (movimientos.length === 0) {
     console.log("No hay movimientos registrados.");
   } else {
-    usuarioActual.movimientos.forEach((mov) => {
+    movimientos.forEach((mov) => {
       console.log(
         `${mov.fecha} - ${
           mov.tipo
@@ -186,6 +206,29 @@ const viewMovimientos = () => {
     });
   }
   console.log("--------------------------------\n");
+};
+
+const selectCuentaMenu = async () => {
+  if (!usuarioActual) {
+    console.error("\nError: Usuario no autenticado.");
+    return;
+  }
+
+  const { cuenta } = await inquirer.prompt([
+    {
+      type: "list",
+      name: "cuenta",
+      message: "Selecciona la cuenta activa:",
+      choices: [
+        { name: "Cuenta de ahorros", value: "ahorros" },
+        { name: "Cuenta corriente", value: "corriente" },
+      ],
+      default: cuentaActiva,
+    },
+  ]);
+
+  cuentaActiva = cuenta;
+  console.log(`\nCuenta activa actualizada a: ${cuentaActiva}`);
 };
 
 const changePasswordMenu = async () => {

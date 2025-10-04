@@ -13,6 +13,21 @@ interface ICliente {
   historial: string[];
 }
 
+const createDefaultAccounts = (): Usuario["cuentas"] => ({
+  ahorros: {
+    id: "ahorros",
+    nombre: "Cuenta de ahorros",
+    saldo: 0,
+    movimientos: [],
+  },
+  corriente: {
+    id: "corriente",
+    nombre: "Cuenta corriente",
+    saldo: 0,
+    movimientos: [],
+  },
+});
+
 export class Cliente {
   private nombre: string;
   private apellido: string;
@@ -22,6 +37,7 @@ export class Cliente {
   private contrasena: string;
   private saldo: number;
   private historial: string[];
+  private cuentas: Usuario["cuentas"];
 
   constructor({
     nombre,
@@ -40,6 +56,7 @@ export class Cliente {
     this.saldo = saldo;
     this.userName = usuario;
     this.historial = [];
+    this.cuentas = createDefaultAccounts();
   }
 
   /* movimiento(descripcion: string, monto: number, idUser: string) {
@@ -169,6 +186,7 @@ export class Cliente {
       password,
       saldo: 0,
       movimientos: [],
+      cuentas: createDefaultAccounts(),
       intentosFallidos: 0,
       bloqueado: false,
     };

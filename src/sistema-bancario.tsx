@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -18,40 +18,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Separator } from "@/components/ui/separator";
 import * as core from "./lib/core";
+import type { Cuenta, Movimiento, TipoCuenta, Usuario, UserData } from "./lib/core";
 import { Moon, Sun } from "lucide-react";
-import { Cliente } from "./backend/Cliente.ts";
-
-// Interfaces
-type Movimiento = {
-  id: number;
-  tipo: "retiro" | "consignación" | string;
-  monto: number;
-  fecha: string;
-  saldoAnterior: number;
-  saldoNuevo: number;
-};
-
-type Usuario = {
-  id: string;
-  nombre: string;
-  cedula: string;
-  celular: string;
-  email: string;
-  password: string;
-  saldo: number;
-  movimientos: Movimiento[];
-  intentosFallidos: number;
-  bloqueado: boolean;
-};
-
-type UserData = Omit<
-  Usuario,
-  "id" | "saldo" | "movimientos" | "intentosFallidos" | "bloqueado"
-> & {
-  password: string;
-};
 
 type LoginResponse = {
   success: boolean;
@@ -60,8 +29,13 @@ type LoginResponse = {
 };
 
 type Operaciones = {
-  retirar: (monto: number) => void;
-  consignar: (monto: number) => void;
+  retirar: (monto: number, cuenta: TipoCuenta) => void;
+  consignar: (
+    monto: number,
+    cuentaOrigen: TipoCuenta,
+    destinatarioId?: string,
+    cuentaDestino?: TipoCuenta
+  ) => void;
   cambiarPassword: (actual: string, nuevo: string) => void;
 };
 
@@ -126,19 +100,13 @@ const FormularioRegistro = ({
   const handleSubmit = () => {
     const allFieldsFilled = (
       Object.keys(formData) as Array<keyof UserData>
-    ).every((key: keyof UserData) => formData[key].trim() !== "");
+    ).every((key: keyof UserData) => {
+      const value = formData[key];
+      return typeof value === "string" && value.trim() !== "";
+    });
 
     if (allFieldsFilled) {
-      const registroUsuario = new Cliente({
-        nombre: formData.nombre,
-        apellido: "", //TODO: agregar apellido al formulario
-        usuario: "", //TODO: agregar usuario al formulario
-        documento: formData.cedula,
-        direccion: "", //TODO: agregar direccion al formulario
-        contrasena: formData.password,
-        saldo: 0,
-        historial: [] as string[],
-      }).guardar();
+      const registroUsuario = onRegistrar(formData);
       if (registroUsuario) {
         alert("Usuario registrado exitosamente");
         setPantalla("menu");
@@ -315,17 +283,43 @@ const Dashboard = ({
 }) => {
   const [vista, setVista] = useState<VistaDashboard | "principal">("principal");
   const [mensaje, setMensaje] = useState("");
+  const [cuentaActiva, setCuentaActiva] = useState<TipoCuenta>("ahorros");
+
+  useEffect(() => {
+    if (!usuario.cuentas[cuentaActiva]) {
+      setCuentaActiva("ahorros");
+    }
+  }, [usuario, cuentaActiva]);
+
+  const cuentasDisponibles = useMemo(
+    () =>
+      (Object.entries(usuario.cuentas) as Array<[TipoCuenta, Cuenta]>).map(
+        ([id, cuenta]) => ({ id, cuenta })
+      ),
+    [usuario.cuentas]
+  );
+
+  const cuentaSeleccionada = useMemo(
+    () => usuario.cuentas[cuentaActiva] ?? cuentasDisponibles[0]?.cuenta,
+    [usuario.cuentas, cuentaActiva, cuentasDisponibles]
+  );
 
   const operaciones: Operaciones = {
-    retirar: (monto) => {
-      const res = core.retirar(usuario, monto);
+    retirar: (monto, cuenta) => {
+      const res = core.retirar(usuario, monto, cuenta);
       setMensaje(res.message);
       if (res.success && res.usuario) onActualizarUsuario(res.usuario);
       setVista("principal");
     },
 
-    consignar: (monto) => {
-      const res = core.consignar(usuario, monto);
+    consignar: (monto, cuentaOrigen, destinatarioId, cuentaDestino) => {
+      const res = core.consignar(
+        usuario,
+        monto,
+        cuentaOrigen,
+        destinatarioId,
+        cuentaDestino
+      );
       setMensaje(res.message);
       if (res.success && res.usuario) onActualizarUsuario(res.usuario);
       setVista("principal");
@@ -346,10 +340,13 @@ const Dashboard = ({
           <CardTitle className="text-xl sm:text-2xl">
             Hola, <span className="font-semibold">{usuario.nombre}</span>
           </CardTitle>
-          <CardDescription className="flex items-center gap-2">
-            <span className="text-sm">Saldo actual</span>
+          <CardDescription className="flex flex-wrap items-center gap-2">
+            <span className="text-sm">
+              Saldo en {cuentaSeleccionada?.nombre ?? "Cuenta"}
+            </span>
             <span className="inline-flex items-center rounded-full border border-border px-3 py-1 text-sm font-medium bg-card">
-              ${usuario.saldo.toLocaleString()}
+              $
+              {cuentaSeleccionada?.saldo.toLocaleString() ?? "0"}
             </span>
           </CardDescription>
         </CardHeader>
@@ -360,6 +357,25 @@ const Dashboard = ({
               <AlertDescription>{mensaje}</AlertDescription>
             </Alert>
           )}
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-muted-foreground">
+              Cuenta activa
+            </Label>
+            <div className="flex flex-wrap gap-2">
+              {cuentasDisponibles.map(({ id, cuenta }) => (
+                <Button
+                  key={id}
+                  type="button"
+                  variant={cuentaActiva === id ? "default" : "outline"}
+                  className="rounded-xl"
+                  onClick={() => setCuentaActiva(id)}
+                >
+                  {cuenta.nombre}
+                </Button>
+              ))}
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Button
@@ -433,6 +449,7 @@ const Dashboard = ({
       vista={vista}
       setVista={setVista}
       usuario={usuario}
+      cuentaActiva={cuentaActiva}
       operaciones={operaciones}
       mensaje={mensaje}
       setMensaje={setMensaje}
@@ -446,6 +463,7 @@ const OperacionComponent = ({
   vista,
   setVista,
   usuario,
+  cuentaActiva,
   operaciones,
   mensaje,
   setMensaje,
@@ -454,6 +472,7 @@ const OperacionComponent = ({
   vista: VistaDashboard;
   setVista: (vista: VistaDashboard | "principal") => void;
   usuario: Usuario;
+  cuentaActiva: TipoCuenta;
   operaciones: Operaciones;
   mensaje: string;
   setMensaje: (mensaje: string) => void;
@@ -465,6 +484,75 @@ const OperacionComponent = ({
   const [nombre, setNombre] = useState(usuario.nombre);
   const [celular, setCelular] = useState(usuario.celular);
   const [email, setEmail] = useState(usuario.email);
+  const [destinatarioId, setDestinatarioId] = useState(usuario.id);
+  const [destinatarioValido, setDestinatarioValido] = useState(true);
+  const [cuentaDestino, setCuentaDestino] = useState<TipoCuenta | "">("");
+  const [destinatario, setDestinatario] = useState<Usuario | null>(usuario);
+
+  const cuentaActivaInfo =
+    usuario.cuentas[cuentaActiva] ?? Object.values(usuario.cuentas)[0];
+
+  useEffect(() => {
+    if (vista === "consignar") {
+      setDestinatarioId(usuario.id);
+      setCuentaDestino("");
+      setDestinatario(usuario);
+      setDestinatarioValido(true);
+    }
+  }, [vista, usuario]);
+
+  useEffect(() => {
+    if (vista !== "consignar") return;
+
+    if (!destinatarioId) {
+      setDestinatario(null);
+      setDestinatarioValido(false);
+      return;
+    }
+
+    if (destinatarioId === usuario.id) {
+      setDestinatario(usuario);
+      setDestinatarioValido(true);
+      return;
+    }
+
+    const encontrado = core.obtenerUsuarioPorId(destinatarioId);
+    if (!encontrado) {
+      setDestinatario(null);
+      setDestinatarioValido(false);
+      return;
+    }
+
+    setDestinatario(encontrado);
+    if (cuentaDestino && !encontrado.cuentas[cuentaDestino as TipoCuenta]) {
+      setCuentaDestino("");
+      setDestinatarioValido(false);
+    } else {
+      setDestinatarioValido(true);
+    }
+  }, [vista, destinatarioId, cuentaDestino, usuario]);
+
+  const cuentasDestino = useMemo(() => {
+    if (!destinatario) return [];
+    return (Object.entries(destinatario.cuentas) as Array<[
+      TipoCuenta,
+      Cuenta
+    ]>).map(([id, cuenta]) => ({ id, cuenta }));
+  }, [destinatario]);
+
+  const botonDeshabilitado = useMemo(() => {
+    if (vista === "retirar" || vista === "consignar") {
+      const montoNum = Number(monto);
+      if (!monto || isNaN(montoNum) || montoNum <= 0) return true;
+      if (vista === "consignar") {
+        return !destinatarioValido || !destinatarioId;
+      }
+    }
+    if (vista === "cambiarPassword") {
+      return !passwordActual || !passwordNuevo;
+    }
+    return false;
+  }, [vista, monto, destinatarioValido, destinatarioId, passwordActual, passwordNuevo]);
 
   const handleSubmit = () => {
     if (vista === "retirar" || vista === "consignar") {
@@ -475,9 +563,26 @@ const OperacionComponent = ({
       }
 
       if (vista === "retirar") {
-        operaciones.retirar(montoNum);
+        operaciones.retirar(montoNum, cuentaActiva);
       } else if (vista === "consignar") {
-        operaciones.consignar(montoNum);
+        if (!destinatarioValido || !destinatarioId) {
+          setMensaje("Verifica la información del destinatario");
+          return;
+        }
+
+        const esOtroUsuario = destinatario && destinatario.id !== usuario.id;
+        const destinoSeleccionado: TipoCuenta | undefined = esOtroUsuario
+          ? (cuentaDestino ? (cuentaDestino as TipoCuenta) : "ahorros")
+          : cuentaDestino
+          ? (cuentaDestino as TipoCuenta)
+          : cuentaActiva;
+
+        operaciones.consignar(
+          montoNum,
+          cuentaActiva,
+          destinatarioId,
+          destinoSeleccionado
+        );
       }
     } else if (vista === "cambiarPassword") {
       if (!passwordActual || !passwordNuevo) {
@@ -490,6 +595,10 @@ const OperacionComponent = ({
     setMonto("");
     setPasswordActual("");
     setPasswordNuevo("");
+    setDestinatarioId(usuario.id);
+    setCuentaDestino("");
+    setDestinatario(usuario);
+    setDestinatarioValido(true);
   };
 
   const volver = () => {
@@ -527,10 +636,14 @@ const OperacionComponent = ({
       <Card className="w-full max-w-md mx-auto card-elevated">
         <CardHeader>
           <CardTitle>Consultar Saldo</CardTitle>
+          <CardDescription>
+            Saldo disponible en {cuentaActivaInfo?.nombre ?? "la cuenta seleccionada"}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center text-3xl font-bold mb-4">
-            ${usuario.saldo.toLocaleString()}
+            $
+            {cuentaActivaInfo?.saldo.toLocaleString() ?? "0"}
           </div>
 
           <Button onClick={volver} className="w-full">
@@ -542,38 +655,44 @@ const OperacionComponent = ({
   }
 
   if (vista === "movimientos") {
+    const movimientosCuenta = cuentaActivaInfo?.movimientos ?? [];
     return (
       <Card className="w-full max-w-lg mx-auto card-elevated">
         <CardHeader>
           <CardTitle>Historial de Movimientos</CardTitle>
+          <CardDescription>
+            Movimientos de {cuentaActivaInfo?.nombre ?? "la cuenta seleccionada"}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-            {usuario.movimientos.length === 0 ? (
+            {movimientosCuenta.length === 0 ? (
               <p className="text-muted-foreground">
-                No hay movimientos registrados
+                No hay movimientos registrados en esta cuenta
               </p>
             ) : (
-              usuario.movimientos.map((mov: Movimiento) => (
+              movimientosCuenta.map((mov: Movimiento) => (
                 <div key={mov.id} className="mov-item text-sm">
                   <div className="flex items-baseline justify-between">
-                    <span className="capitalize font-medium">{mov.tipo}</span>
+                    <span className="capitalize font-medium">
+                      {mov.tipo === "consignacion" ? "consignación" : mov.tipo}
+                    </span>
                     <span
                       className={
                         mov.tipo === "retiro"
                           ? "mov-amount-out"
                           : "mov-amount-in"
-                      }
-                    >
-                      {mov.tipo === "retiro" ? "-" : "+"}$
-                      {mov.monto.toLocaleString()}
-                    </span>
+                    }
+                  >
+                    {mov.tipo === "retiro" ? "-" : "+"}$
+                    {mov.monto.toLocaleString()}
+                  </span>
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     {new Date(mov.fecha).toLocaleString()}
                   </div>
                   <div className="mt-1 text-xs">
-                    Saldo:{" "}
+                    Saldo final:{" "}
                     <span className="font-medium">
                       ${mov.saldoNuevo.toLocaleString()}
                     </span>
@@ -662,6 +781,11 @@ const OperacionComponent = ({
     <Card className="w-full max-w-md mx-auto card-elevated">
       <CardHeader>
         <CardTitle>{getTitulo()}</CardTitle>
+        {(vista === "retirar" || vista === "consignar") && cuentaActivaInfo && (
+          <CardDescription>
+            Operación sobre {cuentaActivaInfo.nombre}
+          </CardDescription>
+        )}
       </CardHeader>
       <CardContent>
         {mensaje && (
@@ -671,8 +795,22 @@ const OperacionComponent = ({
         )}
 
         <div className="space-y-4">
+          {(vista === "retirar" || vista === "consignar") && cuentaActivaInfo && (
+            <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold">{cuentaActivaInfo.nombre}</span>
+                <span className="font-bold">
+                  ${cuentaActivaInfo.saldo.toLocaleString()}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Saldo disponible para esta operación.
+              </p>
+            </div>
+          )}
+
           {(vista === "retirar" || vista === "consignar") && (
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="monto">Monto</Label>
               <Input
                 id="monto"
@@ -683,6 +821,68 @@ const OperacionComponent = ({
                 required
               />
             </div>
+          )}
+
+          {vista === "consignar" && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="destinatarioId">ID del destinatario</Label>
+                <Input
+                  id="destinatarioId"
+                  type="text"
+                  value={destinatarioId}
+                  onChange={(e) => setDestinatarioId(e.target.value.trim())}
+                  placeholder="Número de documento"
+                  required
+                />
+                <p
+                  className={`text-xs ${
+                    destinatarioId
+                      ? destinatarioValido
+                        ? "text-muted-foreground"
+                        : "text-destructive"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {destinatarioId
+                    ? destinatarioValido
+                      ? destinatario?.id === usuario.id
+                        ? "Consignarás a tu propia cuenta."
+                        : `Destinatario: ${destinatario?.nombre ?? "Desconocido"}.`
+                      : "No se encontró un usuario con ese ID."
+                    : "Ingresa el ID del destinatario para continuar."}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cuentaDestino">Cuenta destino (opcional)</Label>
+                <select
+                  id="cuentaDestino"
+                  value={cuentaDestino}
+                  onChange={(event) =>
+                    setCuentaDestino(event.target.value as TipoCuenta | "")
+                  }
+                  disabled={!destinatario || !destinatarioValido}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="">
+                    {destinatario && destinatario.id !== usuario.id
+                      ? "Cuenta de ahorros (predeterminada)"
+                      : `Usar ${cuentaActivaInfo?.nombre ?? "cuenta activa"}`}
+                  </option>
+                  {cuentasDestino.map(({ id, cuenta }) => (
+                    <option key={id} value={id}>
+                      {cuenta.nombre}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  {destinatario && destinatario.id !== usuario.id
+                    ? "Si no seleccionas una cuenta, la consignación irá a la cuenta de ahorros."
+                    : "Si no seleccionas una cuenta, usaremos la cuenta activa."}
+                </p>
+              </div>
+            </>
           )}
 
           {vista === "cambiarPassword" && (
@@ -711,7 +911,11 @@ const OperacionComponent = ({
           )}
 
           <div className="flex gap-2">
-            <Button onClick={handleSubmit} className="flex-1">
+            <Button
+              onClick={handleSubmit}
+              className="flex-1"
+              disabled={botonDeshabilitado}
+            >
               {getBotonTexto()}
             </Button>
             <Button variant="outline" onClick={volver} className="flex-1">

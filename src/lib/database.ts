@@ -1,3 +1,22 @@
+type TipoCuenta = "ahorros" | "corriente";
+
+type Movimiento = {
+  id: number;
+  tipo: "retiro" | "consignacion" | string;
+  monto: number;
+  fecha: string;
+  saldoAnterior: number;
+  saldoNuevo: number;
+  cuenta: TipoCuenta;
+};
+
+type Cuenta = {
+  id: TipoCuenta;
+  nombre: string;
+  saldo: number;
+  movimientos: Movimiento[];
+};
+
 type Usuario = {
   id: string;
   nombre: string;
@@ -7,17 +26,9 @@ type Usuario = {
   password: string;
   saldo: number;
   movimientos: Movimiento[];
+  cuentas: Record<TipoCuenta, Cuenta>;
   intentosFallidos: number;
   bloqueado: boolean;
-};
-
-type Movimiento = {
-  id: number;
-  tipo: "retiro" | "consignación" | string;
-  monto: number;
-  fecha: string;
-  saldoAnterior: number;
-  saldoNuevo: number;
 };
 
 type Database = {
