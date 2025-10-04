@@ -1,13 +1,20 @@
 import { readDb, writeDb } from "./database";
 
 // Interfaces
-type Movimiento = {
+export type Movimiento = {
   id: number;
   tipo: "retiro" | "consignación" | string;
   monto: number;
   fecha: string;
   saldoAnterior: number;
   saldoNuevo: number;
+};
+
+export type Cuenta = {
+  id: string;
+  tipo: "ahorros" | "corriente" | string;
+  saldo: number;
+  movimientos: Movimiento[];
 };
 
 export type Usuario = {
@@ -17,15 +24,14 @@ export type Usuario = {
   celular: string;
   email: string;
   password: string;
-  saldo: number;
-  movimientos: Movimiento[];
+  cuentas: Cuenta[];
   intentosFallidos: number;
   bloqueado: boolean;
 };
 
 export type UserData = Omit<
   Usuario,
-  "id" | "saldo" | "movimientos" | "intentosFallidos" | "bloqueado"
+  "id" | "cuentas" | "intentosFallidos" | "bloqueado"
 > & {
   password: string;
 };
@@ -43,18 +49,26 @@ const createUser = (
   celular: string,
   email: string,
   password: string
-): Usuario => ({
-  id: cedula,
-  nombre,
-  cedula,
-  celular,
-  email,
-  password,
-  saldo: 0,
-  movimientos: [],
-  intentosFallidos: 0,
-  bloqueado: false,
-});
+): Usuario => {
+  const cuentas: Cuenta[] = ["ahorros", "corriente"].map((tipo) => ({
+    id: `${cedula}-${tipo}`,
+    tipo,
+    saldo: 0,
+    movimientos: [],
+  }));
+
+  return {
+    id: cedula,
+    nombre,
+    cedula,
+    celular,
+    email,
+    password,
+    cuentas,
+    intentosFallidos: 0,
+    bloqueado: false,
+  };
+};
 
 export const registrarUsuario = (datos: UserData): boolean => {
   const usuarios = readDb();
@@ -155,53 +169,111 @@ export const actualizarPerfil = (
 
 const agregarMovimiento = (
   usuario: Usuario,
+  cuentaId: string,
   tipo: "retiro" | "consignacion",
   monto: number
-): Usuario => {
+): { usuario: Usuario; cuenta: Cuenta } | null => {
+  const cuenta = obtenerCuenta(usuario, cuentaId);
+
+  if (!cuenta) {
+    return null;
+  }
+
   const movimiento = {
     id: Date.now(),
     tipo,
     monto,
     fecha: new Date().toLocaleString(),
-    saldoAnterior: usuario.saldo,
-    saldoNuevo:
-      tipo === "retiro" ? usuario.saldo - monto : usuario.saldo + monto,
+    saldoAnterior: cuenta.saldo,
+    saldoNuevo: tipo === "retiro" ? cuenta.saldo - monto : cuenta.saldo + monto,
   };
+
+  const cuentasActualizadas = usuario.cuentas.map((c) =>
+    c.id === cuenta.id
+      ? {
+          ...c,
+          saldo: movimiento.saldoNuevo,
+          movimientos: [...c.movimientos, movimiento],
+        }
+      : c
+  );
 
   const usuarioActualizado = {
     ...usuario,
-    saldo: movimiento.saldoNuevo,
-    movimientos: [...usuario.movimientos, movimiento],
+    cuentas: cuentasActualizadas,
   };
 
   actualizarUsuario(usuarioActualizado);
-  return usuarioActualizado;
+  const cuentaActualizada = obtenerCuenta(usuarioActualizado, cuenta.id)!;
+  return { usuario: usuarioActualizado, cuenta: cuentaActualizada };
 };
 
-export const retirar = (usuario: Usuario, monto: number) => {
+export const obtenerCuenta = (
+  usuario: Usuario,
+  cuentaId: string = "ahorros"
+): Cuenta | undefined =>
+  usuario.cuentas.find(
+    (cuenta) => cuenta.id === cuentaId || cuenta.tipo === cuentaId
+  );
+
+export const retirar = (
+  usuario: Usuario,
+  monto: number,
+  cuentaId: string = "ahorros"
+) => {
+  const cuenta = obtenerCuenta(usuario, cuentaId);
+
+  if (!cuenta) {
+    return { success: false, message: "Cuenta no encontrada" };
+  }
+
   if (monto <= 0) {
     return { success: false, message: "El monto debe ser mayor a 0" };
   }
-  if (monto > usuario.saldo) {
+  if (monto > cuenta.saldo) {
     return { success: false, message: "Saldo insuficiente" };
   }
-  const usuarioActualizado = agregarMovimiento(usuario, "retiro", monto);
+  const resultado = agregarMovimiento(usuario, cuenta.id, "retiro", monto);
+
+  if (!resultado) {
+    return { success: false, message: "No fue posible registrar el movimiento" };
+  }
+
+  const { usuario: usuarioActualizado, cuenta: cuentaActualizada } = resultado;
   return {
     success: true,
-    message: `Retiro exitoso. Saldo actual: $${usuarioActualizado.saldo.toLocaleString()}`,
+    message: `Retiro exitoso. Saldo actual en ${cuentaActualizada.tipo}: $${cuentaActualizada.saldo.toLocaleString()}`,
     usuario: usuarioActualizado,
+    cuenta: cuentaActualizada,
   };
 };
 
-export const consignar = (usuario: Usuario, monto: number) => {
+export const consignar = (
+  usuario: Usuario,
+  monto: number,
+  cuentaId: string = "ahorros"
+) => {
+  const cuenta = obtenerCuenta(usuario, cuentaId);
+
+  if (!cuenta) {
+    return { success: false, message: "Cuenta no encontrada" };
+  }
+
   if (monto <= 0) {
     return { success: false, message: "El monto debe ser mayor a 0" };
   }
-  const usuarioActualizado = agregarMovimiento(usuario, "consignacion", monto);
+  const resultado = agregarMovimiento(usuario, cuenta.id, "consignacion", monto);
+
+  if (!resultado) {
+    return { success: false, message: "No fue posible registrar el movimiento" };
+  }
+
+  const { usuario: usuarioActualizado, cuenta: cuentaActualizada } = resultado;
   return {
     success: true,
-    message: `Consignación exitosa. Saldo actual: $${usuarioActualizado.saldo.toLocaleString()}`,
+    message: `Consignación exitosa. Saldo actual en ${cuentaActualizada.tipo}: $${cuentaActualizada.saldo.toLocaleString()}`,
     usuario: usuarioActualizado,
+    cuenta: cuentaActualizada,
   };
 };
 

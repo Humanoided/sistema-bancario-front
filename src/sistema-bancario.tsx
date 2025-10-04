@@ -20,38 +20,11 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import * as core from "./lib/core";
+import type { Movimiento, Usuario, UserData } from "./lib/core";
 import { Moon, Sun } from "lucide-react";
 import { Cliente } from "./backend/Cliente.ts";
 
-// Interfaces
-type Movimiento = {
-  id: number;
-  tipo: "retiro" | "consignación" | string;
-  monto: number;
-  fecha: string;
-  saldoAnterior: number;
-  saldoNuevo: number;
-};
-
-type Usuario = {
-  id: string;
-  nombre: string;
-  cedula: string;
-  celular: string;
-  email: string;
-  password: string;
-  saldo: number;
-  movimientos: Movimiento[];
-  intentosFallidos: number;
-  bloqueado: boolean;
-};
-
-type UserData = Omit<
-  Usuario,
-  "id" | "saldo" | "movimientos" | "intentosFallidos" | "bloqueado"
-> & {
-  password: string;
-};
+const CUENTA_POR_DEFECTO = "ahorros";
 
 type LoginResponse = {
   success: boolean;
@@ -109,10 +82,8 @@ const MenuPrincipal = ({
 
 // Componente de Registro
 const FormularioRegistro = ({
-  onRegistrar,
   setPantalla,
 }: {
-  onRegistrar: (data: UserData) => boolean;
   setPantalla: (pantalla: Pantalla) => void;
 }) => {
   const [formData, setFormData] = useState<UserData>({
@@ -136,8 +107,8 @@ const FormularioRegistro = ({
         documento: formData.cedula,
         direccion: "", //TODO: agregar direccion al formulario
         contrasena: formData.password,
-        saldo: 0,
-        historial: [] as string[],
+        celular: formData.celular,
+        email: formData.email,
       }).guardar();
       if (registroUsuario) {
         alert("Usuario registrado exitosamente");
@@ -315,17 +286,23 @@ const Dashboard = ({
 }) => {
   const [vista, setVista] = useState<VistaDashboard | "principal">("principal");
   const [mensaje, setMensaje] = useState("");
+  const cuentaPrincipal =
+    core.obtenerCuenta(usuario, CUENTA_POR_DEFECTO) ?? usuario.cuentas[0];
 
   const operaciones: Operaciones = {
     retirar: (monto) => {
-      const res = core.retirar(usuario, monto);
+      const res = core.retirar(usuario, monto, cuentaPrincipal?.id ?? CUENTA_POR_DEFECTO);
       setMensaje(res.message);
       if (res.success && res.usuario) onActualizarUsuario(res.usuario);
       setVista("principal");
     },
 
     consignar: (monto) => {
-      const res = core.consignar(usuario, monto);
+      const res = core.consignar(
+        usuario,
+        monto,
+        cuentaPrincipal?.id ?? CUENTA_POR_DEFECTO
+      );
       setMensaje(res.message);
       if (res.success && res.usuario) onActualizarUsuario(res.usuario);
       setVista("principal");
@@ -347,9 +324,15 @@ const Dashboard = ({
             Hola, <span className="font-semibold">{usuario.nombre}</span>
           </CardTitle>
           <CardDescription className="flex items-center gap-2">
-            <span className="text-sm">Saldo actual</span>
+            <span className="text-sm">
+              Saldo actual ({cuentaPrincipal?.tipo ?? "ahorros"})
+            </span>
             <span className="inline-flex items-center rounded-full border border-border px-3 py-1 text-sm font-medium bg-card">
-              ${usuario.saldo.toLocaleString()}
+              ${
+                cuentaPrincipal
+                  ? cuentaPrincipal.saldo.toLocaleString()
+                  : (0).toLocaleString()
+              }
             </span>
           </CardDescription>
         </CardHeader>
@@ -465,6 +448,8 @@ const OperacionComponent = ({
   const [nombre, setNombre] = useState(usuario.nombre);
   const [celular, setCelular] = useState(usuario.celular);
   const [email, setEmail] = useState(usuario.email);
+  const cuentaSeleccionada =
+    core.obtenerCuenta(usuario, CUENTA_POR_DEFECTO) ?? usuario.cuentas[0];
 
   const handleSubmit = () => {
     if (vista === "retirar" || vista === "consignar") {
@@ -530,7 +515,11 @@ const OperacionComponent = ({
         </CardHeader>
         <CardContent>
           <div className="text-center text-3xl font-bold mb-4">
-            ${usuario.saldo.toLocaleString()}
+            ${
+              cuentaSeleccionada
+                ? cuentaSeleccionada.saldo.toLocaleString()
+                : (0).toLocaleString()
+            }
           </div>
 
           <Button onClick={volver} className="w-full">
@@ -549,12 +538,12 @@ const OperacionComponent = ({
         </CardHeader>
         <CardContent>
           <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-            {usuario.movimientos.length === 0 ? (
+            {!cuentaSeleccionada || cuentaSeleccionada.movimientos.length === 0 ? (
               <p className="text-muted-foreground">
                 No hay movimientos registrados
               </p>
             ) : (
-              usuario.movimientos.map((mov: Movimiento) => (
+              cuentaSeleccionada.movimientos.map((mov: Movimiento) => (
                 <div key={mov.id} className="mov-item text-sm">
                   <div className="flex items-baseline justify-between">
                     <span className="capitalize font-medium">{mov.tipo}</span>
@@ -729,10 +718,6 @@ export default function SistemaBancario() {
   const [usuarioActual, setUsuarioActual] = useState<Usuario | null>(null);
   const [pantalla, setPantalla] = useState<Pantalla>("menu");
 
-  const registrarUsuario = (datos: UserData): boolean => {
-    return core.registrarUsuario(datos);
-  };
-
   const iniciarSesion = (id: string, password: string): LoginResponse => {
     const response = core.iniciarSesion(id, password);
     if (response.success) {
@@ -805,10 +790,7 @@ export default function SistemaBancario() {
         {pantalla === "menu" && <MenuPrincipal setPantalla={setPantalla} />}
 
         {pantalla === "registro" && (
-          <FormularioRegistro
-            onRegistrar={registrarUsuario}
-            setPantalla={setPantalla}
-          />
+          <FormularioRegistro setPantalla={setPantalla} />
         )}
 
         {pantalla === "login" && (

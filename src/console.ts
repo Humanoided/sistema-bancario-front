@@ -1,27 +1,8 @@
 import inquirer from "inquirer";
+import type { Movimiento, Usuario } from "./lib/core";
 import * as core from "./lib/core";
 
-interface Movimiento {
-  id: number; // Cambia a 'number' para coincidir con el tipo del core
-  fecha: string;
-  tipo: string;
-  monto: number;
-  saldoAnterior: number;
-  saldoNuevo: number;
-}
-
-interface Usuario {
-  id: string;
-  nombre: string;
-  cedula: string;
-  celular: string;
-  email: string;
-  password: string;
-  saldo: number;
-  movimientos: Movimiento[];
-  intentosFallidos: number;
-  bloqueado: boolean;
-}
+const CUENTA_POR_DEFECTO = "ahorros";
 
 let usuarioActual: Usuario | null = null;
 
@@ -112,7 +93,9 @@ const dashboardMenu = async () => {
   switch (action) {
     case "saldo":
       if (usuarioActual) {
-        console.log(`\nSaldo actual: $${usuarioActual.saldo.toLocaleString()}`);
+        const cuenta = core.obtenerCuenta(usuarioActual, CUENTA_POR_DEFECTO);
+        const saldo = cuenta?.saldo ?? 0;
+        console.log(`\nSaldo actual (${cuenta?.tipo ?? "ahorros"}): $${saldo.toLocaleString()}`);
       } else {
         console.error("\nError: Usuario no autenticado.");
       }
@@ -146,7 +129,7 @@ const retirarMenu = async () => {
     console.error("\nError: Usuario no autenticado.");
     return;
   }
-  const response = core.retirar(usuarioActual, monto);
+  const response = core.retirar(usuarioActual, monto, CUENTA_POR_DEFECTO);
   if (response.success) {
     usuarioActual = response.usuario ?? null;
   }
@@ -161,7 +144,7 @@ const consignarMenu = async () => {
     console.error("\nError: Usuario no autenticado.");
     return;
   }
-  const response = core.consignar(usuarioActual, monto);
+  const response = core.consignar(usuarioActual, monto, CUENTA_POR_DEFECTO);
   if (response.success) {
     usuarioActual = response.usuario ?? null;
   }
@@ -173,11 +156,12 @@ const viewMovimientos = () => {
     console.error("\nError: Usuario no autenticado.");
     return;
   }
+  const cuenta = core.obtenerCuenta(usuarioActual, CUENTA_POR_DEFECTO);
   console.log("\n--- Historial de Movimientos ---");
-  if (usuarioActual.movimientos.length === 0) {
+  if (!cuenta || cuenta.movimientos.length === 0) {
     console.log("No hay movimientos registrados.");
   } else {
-    usuarioActual.movimientos.forEach((mov) => {
+    cuenta.movimientos.forEach((mov) => {
       console.log(
         `${mov.fecha} - ${
           mov.tipo
